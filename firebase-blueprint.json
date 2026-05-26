@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "income_entry": {
+      "title": "Income Entry",
+      "description": "Financial ledger clinical collection data representation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientName": { "type": "string" },
+        "patientId": { "type": "string" },
+        "date": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "amountCollected": { "type": "number" },
+        "paymentMode": { "type": "string" },
+        "notes": { "type": "string" },
+        "clinicLocation": { "type": "string" },
+        "billNo": { "type": "string" },
+        "referredDoctor": { "type": "string" },
+        "aslpName": { "type": "string" },
+        "expenses": { "type": "object" },
+        "createdTime": { "type": "string" }
+      },
+      "required": ["id", "patientName", "patientId", "date", "serviceType", "amountCollected", "paymentMode", "clinicLocation", "billNo", "expenses", "createdTime"]
+    }
+  },
+  "firestore": {
+    "/entries/{entryId}": {
+      "schema": "income_entry",
+      "description": "The collections of patient finances"
+    }
+  }
+}

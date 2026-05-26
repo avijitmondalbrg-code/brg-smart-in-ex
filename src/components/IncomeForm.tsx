@@ -1,0 +1,520 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useEffect, useState } from "react";
+import { 
+  IncomeEntry, 
+  ExpenseDistribution, 
+  CLINIC_LOCATIONS, 
+  SERVICE_TYPES, 
+  PAYMENT_MODES, 
+  DEFAULT_DISTRIBUTION_PRESETS,
+  DistributionPreset
+} from "../types";
+import { 
+  User, 
+  Hash, 
+  Calendar, 
+  BriefcaseMedical, 
+  IndianRupee, 
+  CreditCard, 
+  FileText, 
+  MapPin, 
+  Percent, 
+  Sparkles, 
+  Calculator, 
+  Save, 
+  X,
+  RefreshCw,
+  AlertTriangle
+} from "lucide-react";
+
+interface IncomeFormProps {
+  onSubmit: (entry: Omit<IncomeEntry, "id" | "createdTime"> & { id?: string }) => void;
+  editingEntry?: IncomeEntry | null;
+  onCancelEdit?: () => void;
+}
+
+export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: IncomeFormProps) {
+  // Form core states
+  const [patientName, setPatientName] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const [referredDoctor, setReferredDoctor] = useState("");
+  const [aslpName, setAslpName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
+  const [serviceType, setServiceType] = useState(SERVICE_TYPES[0]);
+  const [customServiceType, setCustomServiceType] = useState("");
+  const [amountCollected, setAmountCollected] = useState<number>(0);
+  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES[0]);
+  const [notes, setNotes] = useState("");
+  const [clinicLocation, setClinicLocation] = useState(CLINIC_LOCATIONS[0]);
+  const [billNo, setBillNo] = useState("");
+
+  // Distribution core states
+  const [selectedPresetIndex, setSelectedPresetIndex] = useState<number>(0);
+  const [doctorReferral, setDoctorReferral] = useState<number>(0);
+  const [audiologistCommission, setAudiologistCommission] = useState<number>(0);
+  const [clinicShare, setClinicShare] = useState<number>(0);
+  const [anyServiceCharges, setAnyServiceCharges] = useState<number>(0);
+  const [supportStaffCommission, setSupportStaffCommission] = useState<number>(0);
+  const [otherExpenses, setOtherExpenses] = useState<number>(0);
+
+  // Derived state: BRG Profit is the remaining surplus / net retention
+  const brgProfit = amountCollected - (
+    doctorReferral +
+    audiologistCommission +
+    clinicShare +
+    anyServiceCharges +
+    supportStaffCommission +
+    otherExpenses
+  );
+
+  // Trigger id generation based on date
+  const regenerateIds = (chosenDate: string) => {
+    const cleanDate = chosenDate.replace(/-/g, "");
+    const randPt = Math.floor(1000 + Math.random() * 9000);
+    const randBill = Math.floor(10000 + Math.random() * 90000);
+    
+    setPatientId(`PT-${cleanDate}-${randPt}`);
+    setBillNo(`BRG-BILL-${cleanDate}-${randBill}`);
+  };
+
+  // Setup form values for new or edited items
+  useEffect(() => {
+    if (editingEntry) {
+      setPatientName(editingEntry.patientName);
+      setPatientId(editingEntry.patientId);
+      setDate(editingEntry.date);
+      setReferredDoctor(editingEntry.referredDoctor || "");
+      setAslpName(editingEntry.aslpName || "");
+      
+      const isCustomService = !SERVICE_TYPES.includes(editingEntry.serviceType);
+      if (isCustomService) {
+        setServiceType("Other");
+        setCustomServiceType(editingEntry.serviceType);
+      } else {
+        setServiceType(editingEntry.serviceType);
+        setCustomServiceType("");
+      }
+      
+      setAmountCollected(editingEntry.amountCollected);
+      setPaymentMode(editingEntry.paymentMode);
+      setNotes(editingEntry.notes);
+      setClinicLocation(editingEntry.clinicLocation);
+      setBillNo(editingEntry.billNo);
+
+      // Load expenses
+      setDoctorReferral(editingEntry.expenses.doctorReferral);
+      setAudiologistCommission(editingEntry.expenses.audiologistCommission);
+      setClinicShare(editingEntry.expenses.clinicShare);
+      setAnyServiceCharges(editingEntry.expenses.anyServiceCharges);
+      setSupportStaffCommission(editingEntry.expenses.supportStaffCommission);
+      setOtherExpenses(editingEntry.expenses.otherExpenses);
+      
+      // Set preset to Custom since we are editing custom values
+      setSelectedPresetIndex(-1);
+    } else {
+      // Clear forms
+      setPatientName("");
+      setReferredDoctor("");
+      setAslpName("");
+      const today = new Date().toISOString().substring(0, 10);
+      setDate(today);
+      setServiceType(SERVICE_TYPES[0]);
+      setCustomServiceType("");
+      setAmountCollected(1500); // realistic default treatment charge
+      setPaymentMode(PAYMENT_MODES[0]);
+      setNotes("");
+      setClinicLocation(CLINIC_LOCATIONS[0]);
+      
+      regenerateIds(today);
+      setSelectedPresetIndex(0); // standard referral
+    }
+  }, [editingEntry]);
+
+  // Automatically select standard referral (preset 0) or direct walk-in (preset 1)
+  useEffect(() => {
+    if (!editingEntry) {
+      const trimmedDoc = referredDoctor.trim().toLowerCase();
+      if (!trimmedDoc || trimmedDoc === "self" || trimmedDoc === "direct" || trimmedDoc.includes("walk-in") || trimmedDoc === "self / direct walk-in") {
+        setSelectedPresetIndex(1); // Direct Walk-in (0% Doctor Referral)
+      } else {
+        setSelectedPresetIndex(0); // Standard Referral (15% Doctor Referral)
+      }
+    }
+  }, [referredDoctor, editingEntry]);
+
+  // Recalculate expense distributions based on active preset and raw collected amount
+  useEffect(() => {
+    if (selectedPresetIndex !== -1 && !editingEntry) {
+      const preset = DEFAULT_DISTRIBUTION_PRESETS[selectedPresetIndex];
+      if (preset) {
+        setDoctorReferral(Math.round((amountCollected * preset.doctorReferralPct) / 100));
+        setAudiologistCommission(Math.round((amountCollected * preset.audiologistCommissionPct) / 100));
+        setClinicShare(Math.round((amountCollected * preset.clinicSharePct) / 100));
+        setAnyServiceCharges(Math.round((amountCollected * preset.anyServiceChargesPct) / 100));
+        setSupportStaffCommission(Math.round((amountCollected * preset.supportStaffCommissionPct) / 100));
+        setOtherExpenses(Math.round((amountCollected * preset.otherExpensesPct) / 100));
+      }
+    }
+  }, [amountCollected, selectedPresetIndex, editingEntry]);
+
+  // Handle manual date change
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (!editingEntry) {
+      regenerateIds(newDate);
+    }
+  };
+
+  // Quick preset trigger helper
+  const handlePresetSelect = (presetIdx: number) => {
+    setSelectedPresetIndex(presetIdx);
+    if (presetIdx !== -1) {
+      const preset = DEFAULT_DISTRIBUTION_PRESETS[presetIdx];
+      setDoctorReferral(Math.round((amountCollected * preset.doctorReferralPct) / 100));
+      setAudiologistCommission(Math.round((amountCollected * preset.audiologistCommissionPct) / 100));
+      setClinicShare(Math.round((amountCollected * preset.clinicSharePct) / 100));
+      setAnyServiceCharges(Math.round((amountCollected * preset.anyServiceChargesPct) / 100));
+      setSupportStaffCommission(Math.round((amountCollected * preset.supportStaffCommissionPct) / 100));
+      setOtherExpenses(Math.round((amountCollected * preset.otherExpensesPct) / 100));
+    }
+  };
+
+  // Helper calculation of standard operational expenses sum (without net retention)
+  const sumOperationalExpenses = 
+    doctorReferral + 
+    audiologistCommission + 
+    clinicShare + 
+    anyServiceCharges + 
+    supportStaffCommission + 
+    otherExpenses;
+
+  // Total allocated including BRG Profit (which is mathematically identical to amountCollected)
+  const sumAllocatedExpenses = sumOperationalExpenses + brgProfit;
+
+  const excessAmount = sumOperationalExpenses - amountCollected;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!patientName.trim()) {
+      alert("Please enter a valid Patient Name.");
+      return;
+    }
+    if (amountCollected <= 0) {
+      alert("Please enter a valid Collected Amount.");
+      return;
+    }
+
+    const finalServiceType = serviceType === "Other" ? (customServiceType || "Other Service") : serviceType;
+
+    const entryPayload = {
+      patientName: patientName.trim(),
+      patientId,
+      date,
+      serviceType: finalServiceType,
+      amountCollected,
+      paymentMode,
+      notes: notes.trim(),
+      clinicLocation,
+      billNo,
+      referredDoctor: referredDoctor.trim(),
+      aslpName: aslpName.trim(),
+      expenses: {
+        doctorReferral,
+        audiologistCommission,
+        clinicShare,
+        anyServiceCharges,
+        supportStaffCommission,
+        otherExpenses,
+        brgProfit
+      },
+      // Pass original ID if editing to overwrite correctly
+      ...(editingEntry ? { id: editingEntry.id } : {})
+    };
+
+    onSubmit(entryPayload);
+
+    // Reset if it was a custom edit
+    if (editingEntry && onCancelEdit) {
+      onCancelEdit();
+    } else {
+      // Clear patient specifics for swift next entries
+      setPatientName("");
+      setReferredDoctor("");
+      setAslpName("");
+      regenerateIds(date);
+      setNotes("");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6 animate-fadeIn" id="finance-entry-form">
+      
+      {/* FULL WIDTH CARD FORM */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        {/* Banner Indicator/Header */}
+        <div className="bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${editingEntry ? "bg-amber-500 animate-pulse" : "bg-teal-500"}`} />
+            <h3 className="text-xs font-bold text-slate-800 font-display uppercase tracking-wider">
+              {editingEntry ? "Edit Transaction Slip" : "Register Patient Collection (Inflow)"}
+            </h3>
+          </div>
+          {editingEntry && (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+              <span>Cancel Edit</span>
+            </button>
+          )}
+        </div>
+
+        {/* Inputs */}
+        <div className="p-5 space-y-4">
+          
+          {/* Patient Details Row (Symmetrical 4 columns on desktop) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            
+            {/* Patient Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                Patient Name <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Ananya Sengupta"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-patient-name"
+                />
+              </div>
+            </div>
+
+            {/* Custom Location Dropdown */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                Clinic Center / Location <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={clinicLocation}
+                onChange={(e) => setClinicLocation(e.target.value)}
+                className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                id="sel-clinic-location"
+              >
+                {CLINIC_LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Referral Doctor */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-teal-600" />
+                Refer Dr. / Clinician
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g., Dr. S. K. Roy (or Self)"
+                  value={referredDoctor}
+                  onChange={(e) => setReferredDoctor(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-referred-doctor"
+                />
+              </div>
+            </div>
+
+            {/* ASLP Name (Audiologist) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-emerald-600" />
+                ASLP (Audiologist Name)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g., Atanu Saha"
+                  value={aslpName}
+                  onChange={(e) => setAslpName(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-aslp-name"
+                />
+              </div>
+            </div>
+
+          </div>
+
+          {/* Billing and Transaction details Row (Symmetrical 4 columns on desktop) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            
+            {/* Appointment Date */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                Date Of Service <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={date}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                id="inp-service-date"
+              />
+            </div>
+
+            {/* Service Type Dropdown */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <BriefcaseMedical className="w-3.5 h-3.5 text-slate-400" />
+                Medical Service Type <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                id="sel-service-type"
+              >
+                {SERVICE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+                <option value="Other">Other (Write Custom Service)</option>
+              </select>
+            </div>
+
+            {/* Amount Collected Input */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
+                Amount Collected (INR) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  max="1000000"
+                  placeholder="0.00"
+                  value={amountCollected || ""}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setAmountCollected(isNaN(val) ? 0 : val);
+                  }}
+                  className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-amount-collected"
+                />
+              </div>
+            </div>
+
+            {/* Payment Mode */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                Payment Instrument/Mode <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value)}
+                className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                id="sel-payment-mode"
+              >
+                {PAYMENT_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+
+          {/* Conditional Custom Service input */}
+          {serviceType === "Other" && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 animate-fadeIn">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Specify Custom Rehabilitation Service
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Speech Therapy Consultation-Premium"
+                value={customServiceType}
+                onChange={(e) => setCustomServiceType(e.target.value)}
+                className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
+                id="inp-custom-service"
+              />
+            </div>
+          )}
+
+          {/* Auto generated read-only indicators */}
+          <div className="bg-slate-50 rounded-lg border border-slate-200 p-3.5 grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-0.5 flex items-center gap-1">
+                <Hash className="w-3 h-3 text-slate-400" /> Auto-Generated Case Pt ID
+              </p>
+              <p className="text-xs font-mono font-bold text-slate-700 bg-white border border-slate-300/60 px-2.5 py-1 rounded-md max-w-max">
+                {patientId || "Generating..."}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-0.5 flex items-center gap-1">
+                <FileText className="w-3 h-3 text-slate-400" /> Auto-Generated Bill No
+              </p>
+              <p className="text-xs font-mono font-bold text-slate-700 bg-white border border-slate-300/60 px-2.5 py-1 rounded-md max-w-max truncate">
+                {billNo || "Generating..."}
+              </p>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              Remarks / Clinical Notes
+            </label>
+            <textarea
+              placeholder="e.g., Patient showed significant compliance. Referred by Dr. Bhattacharya."
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 focus:border-emerald-500 focus:outline-hidden transition-colors"
+              id="txt-remarks-notes"
+            />
+          </div>
+
+        </div>
+
+        {/* Card Footer / Submit section */}
+        <div className="bg-slate-50 px-5 py-4 border-t border-slate-200 flex justify-end">
+          <button
+            type="submit"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold font-mono text-xs py-2.5 px-6 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+            id="btn-submit-entry"
+          >
+            <Save className="w-4 h-4" />
+            <span>{editingEntry ? "Update & Save Patient Entry" : "Register Patient Collection"}</span>
+          </button>
+        </div>
+
+      </div>
+
+    </form>
+  );
+}

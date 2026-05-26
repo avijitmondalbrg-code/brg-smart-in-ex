@@ -1,0 +1,6 @@
+{
+  "name": "BRG Smart IN-EX",
+  "description": "Daily Income and Expense distribution tracker for Bengal Rehabilitation Group (BRG), featuring medical service types, auto-generated patient IDs and bills, custom expense distributions (referrals, commissions, shares), and interactive performance dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
