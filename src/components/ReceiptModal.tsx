@@ -161,19 +161,35 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                 {/* Table Header */}
                 <div className="grid grid-cols-12 bg-slate-100 py-2.5 px-4 font-bold text-slate-600 border-b border-slate-250">
                   <div className="col-span-8">Description of Therapeutic Services</div>
-                  <div className="col-span-4 text-right">Collected Amount</div>
+                  <div className="col-span-4 text-right font-bold">Collected Amount</div>
                 </div>
 
-                {/* Table Row */}
-                <div className="grid grid-cols-12 py-3.5 px-4 bg-white items-center">
-                  <div className="col-span-8">
-                    <p className="font-bold text-slate-800">{entry.serviceType}</p>
-                    <p className="text-[10px] text-slate-500 italic mt-0.5">Clinical Rehabilitation, Consultative Assessment, and Diagnostic Operations.</p>
+                {/* Table Row or Multiple Rows */}
+                {entry.selectedServices && entry.selectedServices.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {entry.selectedServices.map((service, idx) => (
+                      <div className="grid grid-cols-12 py-3 px-4 bg-white items-center" key={idx}>
+                        <div className="col-span-8">
+                          <p className="font-bold text-slate-800">{service.serviceType}</p>
+                          <p className="text-[9px] text-slate-400 italic mt-0.5">Clinical Rehabilitation Procedure & Consultation</p>
+                        </div>
+                        <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[12.5px]">
+                          {formatCurrency(service.amount)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[13px]">
-                    {formatCurrency(entry.amountCollected)}
+                ) : (
+                  <div className="grid grid-cols-12 py-3.5 px-4 bg-white items-center">
+                    <div className="col-span-8">
+                      <p className="font-bold text-slate-800">{entry.serviceType}</p>
+                      <p className="text-[10px] text-slate-500 italic mt-0.5">Clinical Rehabilitation, Consultative Assessment, and Diagnostic Operations.</p>
+                    </div>
+                    <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[13px]">
+                      {formatCurrency(entry.amountCollected)}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Table Footer */}
                 <div className="grid grid-cols-12 bg-slate-50/50 py-3 px-4 font-bold text-slate-800 border-t border-slate-200 items-center">

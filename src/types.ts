@@ -13,6 +13,11 @@ export interface ExpenseDistribution {
   brgProfit: number;
 }
 
+export interface SelectedServiceItem {
+  serviceType: string;
+  amount: number;
+}
+
 export interface IncomeEntry {
   id: string; // Unique internal tracker ID
   patientName: string;
@@ -28,6 +33,7 @@ export interface IncomeEntry {
   aslpName?: string; // Audiologist name
   expenses: ExpenseDistribution;
   createdTime: string; // Timestamp for search
+  selectedServices?: SelectedServiceItem[]; // New field to support multiple services in a single checkout/invoice
 }
 
 export interface DistributionPreset {

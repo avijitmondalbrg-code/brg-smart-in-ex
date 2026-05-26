@@ -11,7 +11,8 @@ import {
   SERVICE_TYPES, 
   PAYMENT_MODES, 
   DEFAULT_DISTRIBUTION_PRESETS,
-  DistributionPreset
+  DistributionPreset,
+  SelectedServiceItem
 } from "../types";
 import { 
   User, 
@@ -51,6 +52,15 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
   const [notes, setNotes] = useState("");
   const [clinicLocation, setClinicLocation] = useState(CLINIC_LOCATIONS[0]);
   const [billNo, setBillNo] = useState("");
+
+  // States for multiple services/procedures under one invoice
+  const [isMultipleServices, setIsMultipleServices] = useState<boolean>(false);
+  const [selectedServicesList, setSelectedServicesList] = useState<SelectedServiceItem[]>([]);
+  
+  // Builder state for adding a service item
+  const [itemServiceType, setItemServiceType] = useState<string>(SERVICE_TYPES[0]);
+  const [itemCustomServiceType, setItemCustomServiceType] = useState<string>("");
+  const [itemAmount, setItemAmount] = useState<number>(0);
 
   // Distribution core states
   const [selectedPresetIndex, setSelectedPresetIndex] = useState<number>(0);
@@ -105,6 +115,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       setClinicLocation(editingEntry.clinicLocation);
       setBillNo(editingEntry.billNo);
 
+      if (editingEntry.selectedServices && editingEntry.selectedServices.length > 0) {
+        setIsMultipleServices(true);
+        setSelectedServicesList(editingEntry.selectedServices);
+      } else {
+        setIsMultipleServices(false);
+        setSelectedServicesList([]);
+      }
+
       // Load expenses
       setDoctorReferral(editingEntry.expenses.doctorReferral);
       setAudiologistCommission(editingEntry.expenses.audiologistCommission);
@@ -128,6 +146,10 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       setPaymentMode(PAYMENT_MODES[0]);
       setNotes("");
       setClinicLocation(CLINIC_LOCATIONS[0]);
+      setIsMultipleServices(false);
+      setSelectedServicesList([]);
+      setItemCustomServiceType("");
+      setItemAmount(0);
       
       regenerateIds(today);
       setSelectedPresetIndex(0); // standard referral
@@ -145,6 +167,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       }
     }
   }, [referredDoctor, editingEntry]);
+
+  // Recalculate total amount collected when services list or mode changes
+  useEffect(() => {
+    if (isMultipleServices) {
+      const total = selectedServicesList.reduce((sum, item) => sum + item.amount, 0);
+      setAmountCollected(total);
+    }
+  }, [selectedServicesList, isMultipleServices]);
 
   // Recalculate expense distributions based on active preset and raw collected amount
   useEffect(() => {
@@ -208,7 +238,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       return;
     }
 
-    const finalServiceType = serviceType === "Other" ? (customServiceType || "Other Service") : serviceType;
+    if (isMultipleServices && selectedServicesList.length === 0) {
+      alert("Please add at least one medical service to compute your combined invoice.");
+      return;
+    }
+
+    const finalServiceType = isMultipleServices
+      ? selectedServicesList.map(s => s.serviceType).join(" + ")
+      : (serviceType === "Other" ? (customServiceType || "Other Service") : serviceType);
 
     const entryPayload = {
       patientName: patientName.trim(),
@@ -231,6 +268,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
         otherExpenses,
         brgProfit
       },
+      // Save itemized billing table if multi-service mode is selected
+      ...(isMultipleServices ? { selectedServices: selectedServicesList } : {}),
       // Pass original ID if editing to overwrite correctly
       ...(editingEntry ? { id: editingEntry.id } : {})
     };
@@ -359,92 +398,336 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
 
           </div>
 
-          {/* Billing and Transaction details Row (Symmetrical 4 columns on desktop) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            
-            {/* Appointment Date */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Date Of Service <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                id="inp-service-date"
-              />
+          {/* Invoice Mode Toggle */}
+          <div className="bg-slate-50/70 rounded-xl border border-slate-200 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3" id="invoice-mode-toggle-panel">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5 font-display uppercase tracking-wide">
+                <BriefcaseMedical className="w-4 h-4 text-emerald-600 animate-pulse" />
+                Invoice Billing Mode
+              </span>
+              <p className="text-[10px] text-slate-500 font-semibold mb-0">Select whether this bill logs a single treatment/test or aggregates multiple medical procedures.</p>
             </div>
-
-            {/* Service Type Dropdown */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                <BriefcaseMedical className="w-3.5 h-3.5 text-slate-400" />
-                Medical Service Type <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={serviceType}
-                onChange={(e) => setServiceType(e.target.value)}
-                className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                id="sel-service-type"
+            <div className="flex bg-slate-200/80 p-1 rounded-lg gap-1 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMultipleServices(false);
+                  if (selectedServicesList.length > 0) {
+                    setAmountCollected(selectedServicesList[0].amount);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${!isMultipleServices ? "bg-white text-emerald-800 shadow-xs" : "text-slate-600 hover:text-slate-800"}`}
+                id="btn-single-service-mode"
               >
-                {SERVICE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-                <option value="Other">Other (Write Custom Service)</option>
-              </select>
+                <span>Single Service</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMultipleServices(true);
+                  if (selectedServicesList.length === 0) {
+                    const currentService = serviceType === "Other" ? (customServiceType || "Other Service") : serviceType;
+                    const val = amountCollected || 1500;
+                    setSelectedServicesList([{ serviceType: currentService, amount: val }]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${isMultipleServices ? "bg-white text-emerald-800 shadow-xs" : "text-slate-600 hover:text-slate-800"}`}
+                id="btn-multiple-services-mode"
+              >
+                <span>Multiple Services</span>
+                <span className="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] px-1.5 py-0.5 rounded-full uppercase">NEW</span>
+              </button>
             </div>
+          </div>
 
-            {/* Amount Collected Input */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
-                Amount Collected (INR) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+          {/* Billing and Transaction details Row */}
+          {!isMultipleServices ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="row-single-service-billing">
+              
+              {/* Appointment Date */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  Date Of Service <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  type="number"
+                  type="date"
                   required
-                  min="1"
-                  max="1000000"
-                  placeholder="0.00"
-                  value={amountCollected || ""}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    setAmountCollected(isNaN(val) ? 0 : val);
-                  }}
-                  className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
-                  id="inp-amount-collected"
+                  value={date}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="inp-service-date"
                 />
               </div>
-            </div>
 
-            {/* Payment Mode */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                Payment Instrument/Mode <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value)}
-                className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                id="sel-payment-mode"
-              >
-                {PAYMENT_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {mode}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Service Type Dropdown */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <BriefcaseMedical className="w-3.5 h-3.5 text-slate-400" />
+                  Medical Service Type <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={serviceType}
+                  onChange={(e) => setServiceType(e.target.value)}
+                  className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="sel-service-type"
+                >
+                  {SERVICE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  <option value="Other">Other (Write Custom Service)</option>
+                </select>
+              </div>
 
-          </div>
+              {/* Amount Collected Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
+                  Amount Collected (INR) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="1000000"
+                    placeholder="0.00"
+                    value={amountCollected || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setAmountCollected(isNaN(val) ? 0 : val);
+                    }}
+                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                    id="inp-amount-collected"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Mode */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                  Payment Instrument/Mode <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="sel-payment-mode"
+                >
+                  {PAYMENT_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" id="row-multiple-services-meta">
+              
+              {/* Appointment Date */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  Date Of Service <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="inp-service-date-multi"
+                />
+              </div>
+
+              {/* Payment Mode */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                  Payment Instrument/Mode <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="sel-payment-mode-multi"
+                >
+                  {PAYMENT_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Aggregated Total Amount (Read-only) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  Combined Collected Amount (INR) <span className="text-emerald-600">(Calculated)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700">₹</span>
+                  <input
+                    type="text"
+                    disabled
+                    value={`${amountCollected} (Auto-computed from list)`}
+                    className="w-full text-xs font-bold font-mono border border-slate-200 rounded-lg py-2.5 pl-7 pr-3 bg-emerald-50/50 text-emerald-800 focus:outline-hidden cursor-not-allowed"
+                    id="inp-amount-collected-multi"
+                  />
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Builder section for multiple services */}
+          {isMultipleServices && (
+            <div className="bg-emerald-50/20 border border-emerald-100 rounded-xl p-4.5 space-y-4 animate-fadeIn" id="multi-services-builder">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-emerald-950 font-display flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                Itemized Medical Services List
+              </h4>
+
+              {/* Dynamic list rendering */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white text-xs">
+                {selectedServicesList.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 font-semibold italic">
+                    No medical services added to this receipt yet. Please add at least one service below to build your invoice.
+                  </div>
+                ) : (
+                  <div>
+                    {/* Header */}
+                    <div className="grid grid-cols-12 bg-slate-50 py-2.5 px-3 font-bold text-slate-600 border-b border-slate-200">
+                      <div className="col-span-1">#</div>
+                      <div className="col-span-7">Service Name & Test Procedure</div>
+                      <div className="col-span-3 text-right">Amount (INR)</div>
+                      <div className="col-span-1 text-center font-bold">Action</div>
+                    </div>
+                    {/* Items */}
+                    <div className="divide-y divide-slate-150">
+                      {selectedServicesList.map((item, idx) => (
+                        <div key={idx} className="grid grid-cols-12 py-2.5 px-3 items-center hover:bg-slate-50/50">
+                          <div className="col-span-1 font-mono font-bold text-slate-400">{idx + 1}</div>
+                          <div className="col-span-7 font-bold text-slate-800">{item.serviceType}</div>
+                          <div className="col-span-3 text-right font-mono font-black text-slate-700">₹{item.amount}</div>
+                          <div className="col-span-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = selectedServicesList.filter((_, i) => i !== idx);
+                                setSelectedServicesList(updated);
+                              }}
+                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1 rounded-md transition-colors inline-flex justify-center items-center cursor-pointer"
+                              title="Delete service item"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Footer - Total Sum */}
+                    <div className="grid grid-cols-12 bg-slate-50/70 py-2.5 px-3 font-bold text-slate-800 border-t border-slate-200 items-center">
+                      <div className="col-span-8 text-right text-slate-500 uppercase tracking-widest text-[10px] font-bold">Combined Bill Inflow total:</div>
+                      <div className="col-span-3 text-right font-mono font-extrabold text-emerald-705 text-[15px]">₹{amountCollected}</div>
+                      <div className="col-span-1"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Service item builder controls */}
+              <div className="p-3.5 bg-white rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Select Medical Service/Test
+                  </label>
+                  <select
+                    value={itemServiceType}
+                    onChange={(e) => setItemServiceType(e.target.value)}
+                    className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2 px-2.5 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="sel-builder-service-type"
+                  >
+                    {SERVICE_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                    <option value="Other">Other Custom Service</option>
+                  </select>
+                </div>
+
+                {itemServiceType === "Other" && (
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Enter Custom Service Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Free-field Audiometry"
+                      value={itemCustomServiceType}
+                      onChange={(e) => setItemCustomServiceType(e.target.value)}
+                      className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
+                      id="inp-builder-custom-service"
+                    />
+                  </div>
+                )}
+
+                <div className={`${itemServiceType === "Other" ? "md:col-span-2" : "md:col-span-5"}`}>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Amount (INR)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₹</span>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 800"
+                      value={itemAmount || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setItemAmount(isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2 pl-6 pr-2.5 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                      id="inp-builder-amount"
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const computedName = itemServiceType === "Other" ? (itemCustomServiceType.trim() || "Custom Service") : itemServiceType;
+                      if (!computedName) {
+                        alert("Please specify a service type name.");
+                        return;
+                      }
+                      if (itemAmount <= 0) {
+                        alert("Please enter a valid amount.");
+                        return;
+                      }
+                      
+                      setSelectedServicesList([...selectedServicesList, { serviceType: computedName, amount: itemAmount }]);
+                      setItemCustomServiceType("");
+                      setItemAmount(0);
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold font-mono text-xs py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[38px]"
+                    id="btn-add-builder-item"
+                  >
+                    <span>+ Add Item</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Conditional Custom Service input */}
           {serviceType === "Other" && (

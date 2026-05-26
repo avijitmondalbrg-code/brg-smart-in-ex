@@ -18,7 +18,8 @@
         "referredDoctor": { "type": "string" },
         "aslpName": { "type": "string" },
         "expenses": { "type": "object" },
-        "createdTime": { "type": "string" }
+        "createdTime": { "type": "string" },
+        "selectedServices": { "type": "array" }
       },
       "required": ["id", "patientName", "patientId", "date", "serviceType", "amountCollected", "paymentMode", "clinicLocation", "billNo", "expenses", "createdTime"]
     }

@@ -35,13 +35,14 @@ service cloud.firestore {
       && data.patientName is string && data.patientName.size() <= 200
       && data.patientId is string && data.patientId.size() <= 64
       && data.date is string && data.date.size() <= 32
-      && data.serviceType is string && data.serviceType.size() <= 128
+      && data.serviceType is string && data.serviceType.size() <= 500
       && data.amountCollected is number
       && data.paymentMode is string && data.paymentMode.size() <= 64
       && data.clinicLocation is string && data.clinicLocation.size() <= 128
       && data.billNo is string && data.billNo.size() <= 64
       && data.createdTime is string && data.createdTime.size() <= 64
-      && data.expenses is map;
+      && data.expenses is map
+      && (!data.keys().hasAny(['selectedServices']) || data.selectedServices is list);
     }
 
     match /entries/{entryId} {
