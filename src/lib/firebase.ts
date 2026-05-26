@@ -8,11 +8,26 @@ import { getAuth, signInAnonymously, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
+// Access Vite environment variables safely
+const metaEnv = (import.meta as any).env || {};
+
+// Read from Environment Variables or fall back to local config
+const resolvedConfig = {
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+  appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+  // Use custom database ID from config/env or fallback to firebase default
+  firestoreDatabaseId: metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || "(default)"
+};
+
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(resolvedConfig);
 
 // Initialize main services
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, resolvedConfig.firestoreDatabaseId === "(default)" ? undefined : resolvedConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
 // Authentication helpers

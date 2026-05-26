@@ -101,10 +101,25 @@ export default function App() {
           setIsFirebaseSyncing(false);
           handleFirestoreError(error, OperationType.LIST, "entries");
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Firebase syncing failed to establish:", err);
         setIsFirebaseSyncing(false);
-        triggerNotification("Operating offline. Changes will not be sent to the server.", "danger");
+        const errStr = err instanceof Error ? err.message : String(err);
+        
+        let friendlyAlert = "Operating offline. Changes will not be sent to the server.";
+        if (errStr.includes("auth/operation-not-allowed")) {
+          friendlyAlert = "Database connection error: 'Anonymous Sign-In' is disabled in your Firebase console. Please enable it under Auth -> Sign-in Method.";
+        } else if (errStr.includes("permission-denied") || errStr.toLowerCase().includes("permission")) {
+          friendlyAlert = "Sync Error: Permission Denied. Please ensure your Firestore rules are updated.";
+        } else if (errStr.includes("restricted") || errStr.toLowerCase().includes("api key") || errStr.includes("key-not-found")) {
+          friendlyAlert = "Invalid API Key: Please verify Firebase configuration environment variables.";
+        } else if (errStr.includes("quota") || errStr.toLowerCase().includes("quota exceeded")) {
+          friendlyAlert = "Firebase Database Quota Exceeded. Standard free tier limits reached.";
+        } else {
+          friendlyAlert = `Database offline: ${errStr.substring(0, 130)}`;
+        }
+        
+        triggerNotification(friendlyAlert, "danger");
       }
     };
 
