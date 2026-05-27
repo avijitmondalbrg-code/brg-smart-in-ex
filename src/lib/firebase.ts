@@ -8,8 +8,9 @@ import { getAuth, signInAnonymously, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
-// Access Vite environment variables safely
-const metaEnv = (import.meta as any).env || {};
+// Access Vite environment variables safely inline with standard compiler expectations
+// @ts-ignore
+const metaEnv = import.meta.env || {};
 
 // Read from Environment Variables or fall back to local config
 const resolvedConfig = {
