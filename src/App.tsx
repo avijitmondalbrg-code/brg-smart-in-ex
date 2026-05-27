@@ -359,7 +359,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-6">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-6 ${receiptEntry ? "no-print" : ""}`}>
         
         {/* Toast Notifications Banner */}
         {notification && (
