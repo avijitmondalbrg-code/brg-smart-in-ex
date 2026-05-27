@@ -30,44 +30,84 @@ body {
 
 /* Custom print styles to support clean medical printouts */
 @media print {
-  body {
-    background-color: white !important;
-    color: black !important;
-  }
-  .no-print {
+  /* Hide typical preview/app UI */
+  .no-print,
+  button,
+  header,
+  footer,
+  main {
     display: none !important;
   }
-  
-  /* Reset positioning, margins, and layout of the modal container to make it natural and flow nicely on a sheet of A4 paper */
-  #receipt-modal-bg {
-    position: static !important;
+
+  /* Reset layout constraints of document body to allow standard paper pagination */
+  html, body {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    min-height: auto !important;
     overflow: visible !important;
-    z-index: auto !important;
-    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
+  /* Position modal container so it maps directly on the print sheet */
+  #receipt-modal-bg {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+    display: block !important;
+    z-index: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* De-flex the spacer wrapper so it prints nicely without centering clips */
   #receipt-modal-bg > div {
     display: block !important;
-    padding: 0 !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
     min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+    transition: none !important;
   }
 
-  #receipt-modal-bg div[role="dialog"],
+  /* Simplify the card frame and strip transitions/transforms */
   #receipt-modal-bg .relative {
     position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
     box-shadow: none !important;
     border: none !important;
     transform: none !important;
-    max-width: 100% !important;
-    width: 100% !important;
+    transition: none !important;
     border-radius: 0 !important;
     background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Optimize padding for actual printed pages */
+  /* Customize receipt sheet padding to avoid spilling over edge margins */
   #printable-receipt-card {
-    padding: 0 !important;
+    padding: 15px !important;
     margin: 0 !important;
     border: none !important;
+    background: white !important;
+    width: 100% !important;
+  }
+
+  /* Force background colors and colors to print correctly (crucial for logos and tables!) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
