@@ -48,6 +48,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
   const [serviceType, setServiceType] = useState(SERVICE_TYPES[0]);
   const [customServiceType, setCustomServiceType] = useState("");
   const [amountCollected, setAmountCollected] = useState<number>(0);
+  const [grossAmount, setGrossAmount] = useState<number>(1500);
+  const [discount, setDiscount] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES[0]);
   const [notes, setNotes] = useState("");
   const [clinicLocation, setClinicLocation] = useState(CLINIC_LOCATIONS[0]);
@@ -109,6 +111,9 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
         setCustomServiceType("");
       }
       
+      const disc = editingEntry.discount || 0;
+      setDiscount(disc);
+      setGrossAmount(editingEntry.amountCollected + disc);
       setAmountCollected(editingEntry.amountCollected);
       setPaymentMode(editingEntry.paymentMode);
       setNotes(editingEntry.notes);
@@ -142,6 +147,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       setDate(today);
       setServiceType(SERVICE_TYPES[0]);
       setCustomServiceType("");
+      setDiscount(0);
+      setGrossAmount(1500);
       setAmountCollected(1500); // realistic default treatment charge
       setPaymentMode(PAYMENT_MODES[0]);
       setNotes("");
@@ -168,13 +175,15 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
     }
   }, [referredDoctor, editingEntry]);
 
-  // Recalculate total amount collected when services list or mode changes
+  // Recalculate net amount collected when services list, gross amount, discount or mode changes
   useEffect(() => {
     if (isMultipleServices) {
       const total = selectedServicesList.reduce((sum, item) => sum + item.amount, 0);
-      setAmountCollected(total);
+      setAmountCollected(Math.max(0, total - discount));
+    } else {
+      setAmountCollected(Math.max(0, grossAmount - discount));
     }
-  }, [selectedServicesList, isMultipleServices]);
+  }, [selectedServicesList, isMultipleServices, grossAmount, discount]);
 
   // Recalculate expense distributions based on active preset and raw collected amount
   useEffect(() => {
@@ -259,6 +268,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       billNo,
       referredDoctor: referredDoctor.trim(),
       aslpName: aslpName.trim(),
+      discount,
       expenses: {
         doctorReferral,
         audiologistCommission,
@@ -442,93 +452,129 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
 
           {/* Billing and Transaction details Row */}
           {!isMultipleServices ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="row-single-service-billing">
-              
-              {/* Appointment Date */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  Date Of Service <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                  id="inp-service-date"
-                />
-              </div>
-
-              {/* Service Type Dropdown */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                  <BriefcaseMedical className="w-3.5 h-3.5 text-slate-400" />
-                  Medical Service Type <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={serviceType}
-                  onChange={(e) => setServiceType(e.target.value)}
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                  id="sel-service-type"
-                >
-                  {SERVICE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                  <option value="Other">Other (Write Custom Service)</option>
-                </select>
-              </div>
-
-              {/* Amount Collected Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                  <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
-                  Amount Collected (INR) <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4" id="row-single-service-billing">
+                
+                {/* Appointment Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    Date Of Service <span className="text-rose-500">*</span>
+                  </label>
                   <input
-                    type="number"
+                    type="date"
                     required
-                    min="1"
-                    max="1000000"
-                    placeholder="0.00"
-                    value={amountCollected || ""}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setAmountCollected(isNaN(val) ? 0 : val);
-                    }}
-                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
-                    id="inp-amount-collected"
+                    value={date}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="inp-service-date"
                   />
                 </div>
+
+                {/* Service Type Dropdown */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <BriefcaseMedical className="w-3.5 h-3.5 text-slate-400" />
+                    Medical Service Type <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={serviceType}
+                    onChange={(e) => setServiceType(e.target.value)}
+                    className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="sel-service-type"
+                  >
+                    {SERVICE_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                    <option value="Other">Other (Write Custom Service)</option>
+                  </select>
+                </div>
+
+                {/* Gross Amount Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <IndianRupee className="w-3.5 h-3.5 text-slate-400" />
+                    Gross Fee (INR) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max="1000000"
+                      placeholder="0.00"
+                      value={grossAmount || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setGrossAmount(isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                      id="inp-gross-amount"
+                    />
+                  </div>
+                </div>
+
+                {/* Discount Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                    Discount (INR)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100000"
+                      placeholder="0.00"
+                      value={discount || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setDiscount(isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                      id="inp-discount"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Mode */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                    Payment Mode <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={paymentMode}
+                    onChange={(e) => setPaymentMode(e.target.value)}
+                    className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="sel-payment-mode"
+                  >
+                    {PAYMENT_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {mode}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
               </div>
 
-              {/* Payment Mode */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                  <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                  Payment Instrument/Mode <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={paymentMode}
-                  onChange={(e) => setPaymentMode(e.target.value)}
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
-                  id="sel-payment-mode"
-                >
-                  {PAYMENT_MODES.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {mode}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+              {discount > 0 && (
+                <div className="text-right text-xs font-bold text-emerald-600 bg-emerald-50/50 max-w-max ml-auto px-4 py-2 rounded-xl border border-emerald-100 mt-1 flex items-center gap-2 animate-fadeIn">
+                  <span>Net Received Collection:</span>
+                  <span className="font-mono bg-emerald-600 text-white font-extrabold px-2 py-0.5 rounded text-[13px]">₹{amountCollected}</span>
+                  <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black">
+                    -{Math.round((discount / (grossAmount || 1)) * 100)}% Off
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" id="row-multiple-services-meta">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4" id="row-multiple-services-meta">
               
               {/* Appointment Date */}
               <div>
@@ -544,6 +590,30 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
                   className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
                   id="inp-service-date-multi"
                 />
+              </div>
+
+              {/* Discount Input for multi service */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  Discount (INR)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100000"
+                    placeholder="0.00"
+                    value={discount || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setDiscount(isNaN(val) ? 0 : val);
+                    }}
+                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 pl-7 pr-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                    id="inp-discount-multi"
+                  />
+                </div>
               </div>
 
               {/* Payment Mode */}
@@ -570,14 +640,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
                   <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  Combined Collected Amount (INR) <span className="text-emerald-600">(Calculated)</span>
+                  Net Collection (INR) <span className="text-emerald-600">(Calculated)</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700">₹</span>
                   <input
                     type="text"
                     disabled
-                    value={`${amountCollected} (Auto-computed from list)`}
+                    value={`${amountCollected} (Minus Discount)`}
                     className="w-full text-xs font-bold font-mono border border-slate-200 rounded-lg py-2.5 pl-7 pr-3 bg-emerald-50/50 text-emerald-800 focus:outline-hidden cursor-not-allowed"
                     id="inp-amount-collected-multi"
                   />

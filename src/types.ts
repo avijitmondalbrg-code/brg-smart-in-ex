@@ -34,6 +34,7 @@ export interface IncomeEntry {
   expenses: ExpenseDistribution;
   createdTime: string; // Timestamp for search
   selectedServices?: SelectedServiceItem[]; // New field to support multiple services in a single checkout/invoice
+  discount?: number; // Discount given
 }
 
 export interface DistributionPreset {

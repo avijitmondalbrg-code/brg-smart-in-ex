@@ -54,6 +54,8 @@ export default function TransactionsTable({
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedService, setSelectedService] = useState("All");
   const [selectedPaymentMode, setSelectedPaymentMode] = useState("All");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Inline Expense Allocations Editing State
   const [editingExpensesId, setEditingExpensesId] = useState<string | null>(null);
@@ -100,6 +102,8 @@ export default function TransactionsTable({
     setSelectedLocation("All");
     setSelectedService("All");
     setSelectedPaymentMode("All");
+    setStartDate("");
+    setEndDate("");
   };
 
   // Filter logic
@@ -113,9 +117,63 @@ export default function TransactionsTable({
     const matchesLoc = selectedLocation === "All" || e.clinicLocation === selectedLocation;
     const matchesService = selectedService === "All" || e.serviceType === selectedService;
     const matchesPay = selectedPaymentMode === "All" || e.paymentMode === selectedPaymentMode;
+    const matchesStart = !startDate || e.date >= startDate;
+    const matchesEnd = !endDate || e.date <= endDate;
 
-    return matchesSearch && matchesLoc && matchesService && matchesPay;
+    return matchesSearch && matchesLoc && matchesService && matchesPay && matchesStart && matchesEnd;
   });
+
+  const downloadLedgerCSV = () => {
+    // Generate headers
+    const cols = [
+      "Date", "Patient ID", "Patient Name", "Bill No", "Service Type", 
+      "Clinic Location", "Payment Mode", "Gross Fee (INR)", "Discount (INR)", "Net Collected (INR)", 
+      "Referred Doctor", "ASLP (Audiologist)", "Doc Referral Alloc (INR)", "ASLP Commission (INR)", 
+      "Clinic Share (INR)", "Service/Fabrication Fees (INR)", "Support Staff Commission (INR)", 
+      "Other Expenses (INR)", "BRG Profit (INR)", "Created Time", "Notes"
+    ];
+    
+    // Rows
+    const rows = sortedEntries.map(e => [
+      e.date,
+      e.patientId,
+      `"${e.patientName.replace(/"/g, '""')}"`,
+      e.billNo,
+      `"${e.serviceType.replace(/"/g, '""')}"`,
+      `"${e.clinicLocation.replace(/"/g, '""')}"`,
+      e.paymentMode,
+      e.amountCollected + (e.discount || 0), // Gross Fee
+      e.discount || 0, // Discount
+      e.amountCollected, // Net Collected
+      `"${(e.referredDoctor || "").replace(/"/g, '""')}"`,
+      `"${(e.aslpName || "").replace(/"/g, '""')}"`,
+      e.expenses.doctorReferral,
+      e.expenses.audiologistCommission,
+      e.expenses.clinicShare,
+      e.expenses.anyServiceCharges,
+      e.expenses.supportStaffCommission,
+      e.expenses.otherExpenses,
+      e.expenses.brgProfit || 0,
+      e.createdTime,
+      `"${(e.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
+    ]);
+
+    // Construct CSV
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    // Download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `patient_ledger_report_${startDate || "all"}_to_${endDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Sorting logic
   const sortedEntries = [...filteredEntries].sort((a, b) => {
@@ -168,14 +226,40 @@ export default function TransactionsTable({
             <p className="text-xs text-slate-500">Query transactions, view expense distributions of individual patients, or print invoices</p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs self-start sm:self-auto">
-            <span className="bg-teal-50 text-teal-800 font-bold px-2 py-1 rounded border border-teal-100">
-              {filteredEntries.length} Records Found
+          <div className="flex flex-wrap items-center gap-2 text-xs self-start sm:self-auto">
+            <div className="flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">From:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-xs font-mono border-none outline-hidden focus:outline-hidden p-0 w-[105px] h-auto bg-transparent focus:ring-0"
+              />
+            </div>
+            <div className="flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">To:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-xs font-mono border-none outline-hidden focus:outline-hidden p-0 w-[105px] h-auto bg-transparent focus:ring-0"
+              />
+            </div>
+            <button
+              onClick={downloadLedgerCSV}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-[30px] px-3 py-1 rounded-lg transition-colors cursor-pointer shadow-xs border border-emerald-700/10"
+              title="Download Date-Wise Patient Ledger CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+            <span className="bg-teal-50 text-teal-800 font-bold px-2 py-1.5 rounded border border-teal-100">
+              {filteredEntries.length} Records
             </span>
-            {(searchTerm || selectedLocation !== "All" || selectedService !== "All" || selectedPaymentMode !== "All") && (
+            {(searchTerm || selectedLocation !== "All" || selectedService !== "All" || selectedPaymentMode !== "All" || startDate || endDate) && (
               <button 
                 onClick={handleResetFilters}
-                className="text-slate-500 hover:text-slate-700 bg-white border border-slate-200 font-semibold px-2 py-1 rounded transition-colors cursor-pointer"
+                className="text-slate-500 hover:text-slate-700 bg-white border border-slate-200 font-semibold px-2 py-1.5 rounded transition-colors cursor-pointer"
               >
                 Clear Filters
               </button>
@@ -191,7 +275,7 @@ export default function TransactionsTable({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search Name, Pt ID, Bill No..."
+              placeholder="Search Name, Pt ID, Bill..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 pl-9 pr-3 bg-white focus:border-teal-500 focus:outline-hidden transition-colors"
@@ -243,6 +327,8 @@ export default function TransactionsTable({
               ))}
             </select>
           </div>
+
+
 
         </div>
 

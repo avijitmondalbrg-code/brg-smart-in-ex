@@ -25,6 +25,12 @@ interface ReceiptModalProps {
 export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
   if (!entry) return null;
 
+  const discount = entry.discount || 0;
+  const hasDiscount = discount > 0;
+  const subtotal = entry.selectedServices && entry.selectedServices.length > 0
+    ? entry.selectedServices.reduce((sum, s) => sum + s.amount, 0)
+    : (entry.amountCollected + discount);
+
   const handlePrint = () => {
     window.print();
   };
@@ -192,6 +198,22 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                 )}
 
                 {/* Table Footer */}
+                {hasDiscount && (
+                  <div className="grid grid-cols-12 bg-slate-50/20 py-2 px-4 text-xs font-semibold text-slate-500 border-t border-slate-200 items-center">
+                    <div className="col-span-8 text-right font-display text-[10px] uppercase tracking-wider">Gross Subtotal:</div>
+                    <div className="col-span-4 text-right font-mono font-bold text-slate-700">
+                      {formatCurrency(subtotal)}
+                    </div>
+                  </div>
+                )}
+                {hasDiscount && (
+                  <div className="grid grid-cols-12 bg-rose-50/40 py-2 px-4 text-xs font-semibold text-rose-600 items-center border-t border-slate-100">
+                    <div className="col-span-8 text-right font-display text-[10px] uppercase tracking-wider">Discount Applied:</div>
+                    <div className="col-span-4 text-right font-mono font-bold">
+                      -{formatCurrency(discount)}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-12 bg-slate-50/50 py-3 px-4 font-bold text-slate-800 border-t border-slate-200 items-center">
                   <div className="col-span-8 text-right text-slate-500 font-display">TENDER TOTAL PAID:</div>
                   <div className="col-span-4 text-right font-mono font-extrabold text-[14px] text-teal-700">

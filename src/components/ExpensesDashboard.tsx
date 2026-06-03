@@ -43,6 +43,12 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Section-specific date filters for individual CSV exports and local widgets
+  const [categoryStartDate, setCategoryStartDate] = useState<string>("");
+  const [categoryEndDate, setCategoryEndDate] = useState<string>("");
+  const [clinicStartDate, setClinicStartDate] = useState<string>("");
+  const [clinicEndDate, setClinicEndDate] = useState<string>("");
   
   // Interactive hover indicator states for charts
   const [hoveredHeadKey, setHoveredHeadKey] = useState<string | null>(null);
@@ -55,6 +61,114 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
       currency: "INR",
       maximumFractionDigits: 0
     }).format(amount);
+  };
+
+  // CSV Exporter for Overall Category Allocations (Inflows Split)
+  const downloadCategoryAllocationsCSV = () => {
+    const cols = ["Expense Category Head", "Allocated Amount (INR)", "Percentage of Inflows (%)"];
+    const rows = EXPENSE_CATEGORIES.map(cat => {
+      const rawVal = categorySummary[cat.key as keyof typeof categorySummary] || 0;
+      const pct = categorySummary.totalIncome > 0 ? ((rawVal / categorySummary.totalIncome) * 100).toFixed(2) : "0";
+      return [
+        cat.label,
+        rawVal,
+        `${pct}%`
+      ];
+    });
+
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `overall_category_allocations_${categoryStartDate || "all"}_to_${categoryEndDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // CSV Exporter for Clinic Location Disbursement Share
+  const downloadClinicDisbursementCSV = () => {
+    const cols = ["Clinic Location", "Disbursed Amount (INR)", "Percentage Share (%)"];
+    const totalSelectedPayouts = locationGraphData.reduce((sum, d) => sum + d.amount, 0);
+    const rows = locationGraphData.map(l => {
+      const pct = totalSelectedPayouts > 0 ? ((l.amount / totalSelectedPayouts) * 100).toFixed(2) : "0";
+      return [
+        l.clinic,
+        l.amount,
+        `${pct}%`
+      ];
+    });
+
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `clinic_location_disbursement_share_${clinicStartDate || "all"}_to_${clinicEndDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // CSV Exporter for Voucher Disbursals Ledger Sheet
+  const downloadVouchersCSV = () => {
+    const cols = [
+      "Voucher Date", "Patient ID", "Patient Name", "Bill No", 
+      "Expense Category", "Associated Detail", "Clinic Center", "Total Inflow (INR)", "Fund Outflow/Allocated (INR)"
+    ];
+    const rows = filteredVouchers.map(v => {
+      let detailString = "";
+      if (v.categoryKey === "doctorReferral") {
+        detailString = v.referredDoctor || "Self Referral/Direct";
+      } else if (v.categoryKey === "audiologistCommission") {
+        detailString = v.aslpName || "Staff ASLP";
+      } else if (v.categoryKey === "clinicShare") {
+        detailString = "Diagnostic Facilities Rent";
+      } else if (v.categoryKey === "anyServiceCharges") {
+        detailString = "Lab fabrication & products";
+      } else if (v.categoryKey === "supportStaffCommission") {
+        detailString = "Local support desk incentive";
+      } else if (v.categoryKey === "otherExpenses") {
+        detailString = "Generic operations";
+      } else if (v.categoryKey === "brgProfit") {
+        detailString = "BRG Net retention capital";
+      }
+
+      return [
+        v.date,
+        v.patientId,
+        `"${v.patientName.replace(/"/g, '""')}"`,
+        v.billNo,
+        v.categoryLabel,
+        `"${detailString.replace(/"/g, '""')}"`,
+        `"${v.clinicLocation.replace(/"/g, '""')}"`,
+        v.totalCaseAmnt,
+        v.amount
+      ];
+    });
+
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `voucher_disbursals_report_${startDate || "all"}_to_${endDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Convert raw entries into aggregated category distributions
@@ -71,7 +185,13 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
       totalDisbursed: 0
     };
 
-    entries.forEach((e) => {
+    const filtered = entries.filter((e) => {
+      const startOk = !categoryStartDate || e.date >= categoryStartDate;
+      const endOk = !categoryEndDate || e.date <= categoryEndDate;
+      return startOk && endOk;
+    });
+
+    filtered.forEach((e) => {
       summary.totalIncome += e.amountCollected;
       summary.doctorReferral += e.expenses.doctorReferral || 0;
       summary.audiologistCommission += e.expenses.audiologistCommission || 0;
@@ -91,7 +211,7 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
       summary.otherExpenses;
 
     return summary;
-  }, [entries]);
+  }, [entries, categoryStartDate, categoryEndDate]);
 
   // Transform entries into specific "Expense Vouchers"
   const allVouchers = useMemo(() => {
@@ -200,23 +320,36 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
     };
   }, [filteredVouchers]);
 
-  // Graph 1: Location wise splits for active expense filter
+  // Graph 1: Location wise splits for active expense filter, locally bound by clinicStartDate/clinicEndDate
   const locationGraphData = useMemo(() => {
     const locSums: Record<string, number> = {};
     CLINIC_LOCATIONS.forEach((l) => { locSums[l] = 0; });
 
-    filteredVouchers.forEach((v) => {
-      if (locSums[v.clinicLocation] !== undefined) {
-        locSums[v.clinicLocation] += v.amount;
-      } else {
-        locSums[v.clinicLocation] = v.amount;
+    // Generate vouchers filtered by the local clinic dates
+    const filteredAllocations = entries.filter((e) => {
+      const startOk = !clinicStartDate || e.date >= clinicStartDate;
+      const endOk = !clinicEndDate || e.date <= clinicEndDate;
+      return startOk && endOk;
+    });
+
+    filteredAllocations.forEach((e) => {
+      const loc = e.clinicLocation;
+      if (locSums[loc] !== undefined) {
+        locSums[loc] += (
+          (e.expenses.doctorReferral || 0) +
+          (e.expenses.audiologistCommission || 0) +
+          (e.expenses.clinicShare || 0) +
+          (e.expenses.anyServiceCharges || 0) +
+          (e.expenses.supportStaffCommission || 0) +
+          (e.expenses.otherExpenses || 0)
+        );
       }
     });
 
     return Object.entries(locSums)
       .map(([clinic, amount]) => ({ clinic, amount }))
       .sort((a, b) => b.amount - a.amount);
-  }, [filteredVouchers]);
+  }, [entries, clinicStartDate, clinicEndDate]);
 
   const maxLocationAmnt = useMemo(() => {
     const val = Math.max(...locationGraphData.map((d) => d.amount), 0);
@@ -341,13 +474,41 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
           {/* LEFT COLUMN: CATEGORY OUTFLOW BAR CHART & DYNAMIC LEGEND BREAKDOWN */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs lg:col-span-6 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
                 <div>
                   <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-1.5">
                     <PieChart className="w-4 h-4 text-rose-500" />
                     Overall Category Allocations (Inflows Split)
                   </h4>
                   <p className="text-[11px] text-slate-500">Relative weights of standard disbursement heads and corporate retention</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 no-print">
+                  <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">From:</span>
+                    <input
+                      type="date"
+                      value={categoryStartDate}
+                      onChange={(e) => setCategoryStartDate(e.target.value)}
+                      className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">To:</span>
+                    <input
+                      type="date"
+                      value={categoryEndDate}
+                      onChange={(e) => setCategoryEndDate(e.target.value)}
+                      className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                    />
+                  </div>
+                  <button
+                    onClick={downloadCategoryAllocationsCSV}
+                    className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 h-[24px] rounded text-[9px] uppercase tracking-wider transition-colors cursor-pointer shadow-xs border border-emerald-700/10"
+                    title="Download Category Allocations CSV"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Export</span>
+                  </button>
                 </div>
               </div>
 
@@ -477,13 +638,41 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
 
             {/* DYNAMIC CLINIC LOCATIONS RATIO SPLIT HORIZONTAL CHART */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-100 pb-2.5 mb-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-1.5 font-sans">
                     <MapPin className="w-4 h-4 text-red-500" />
                     Clinic Location Disbursement Share
                   </h4>
                   <p className="text-[10.5px] text-slate-500">Contribution ratio per Center</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 no-print">
+                  <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">From:</span>
+                    <input
+                      type="date"
+                      value={clinicStartDate}
+                      onChange={(e) => setClinicStartDate(e.target.value)}
+                      className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">To:</span>
+                    <input
+                      type="date"
+                      value={clinicEndDate}
+                      onChange={(e) => setClinicEndDate(e.target.value)}
+                      className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                    />
+                  </div>
+                  <button
+                    onClick={downloadClinicDisbursementCSV}
+                    className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 h-[24px] rounded text-[9px] uppercase tracking-wider transition-colors cursor-pointer shadow-xs border border-emerald-700/10"
+                    title="Download Clinic Locations Share CSV"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Export</span>
+                  </button>
                 </div>
               </div>
 
@@ -533,11 +722,41 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Filter Section Title */}
-            <div className="flex items-center gap-1.5">
-              <Filter className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-xs font-bold text-slate-800 font-display uppercase tracking-wider">
-                Voucher Disbursals Ledger Sheet
-              </h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-bold text-slate-800 font-display uppercase tracking-wider">
+                  Voucher Disbursals Ledger Sheet
+                </h3>
+              </div>
+              <div className="flex items-center gap-1.5 no-print">
+                <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase">From:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                  />
+                </div>
+                <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase">To:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                  />
+                </div>
+                <button
+                  onClick={downloadVouchersCSV}
+                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 h-[24px] rounded text-[9px] uppercase tracking-wider transition-colors cursor-pointer shadow-xs border border-emerald-700/10 animate-pulse-once"
+                  title="Download Date-Wise Voucher Disbursals CSV"
+                >
+                  <FileSpreadsheet className="w-3 h-3" />
+                  <span>Export</span>
+                </button>
+              </div>
             </div>
 
             {/* Selection indicators */}
@@ -585,10 +804,10 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
           </div>
 
           {/* Form input matrix row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 mt-4">
             
             {/* Search Input bar */}
-            <div className="relative md:col-span-1.5">
+            <div className="relative">
               <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
@@ -629,28 +848,6 @@ export default function ExpensesDashboard({ entries }: ExpensesDashboardProps) {
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Start Date Bound */}
-            <div className="relative">
-              <span className="absolute left-3.5 top-2 py-0.5 text-[9px] uppercase tracking-wider text-slate-400 font-bold pointer-events-none">From:</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full text-[11px] font-mono border border-slate-300 rounded-lg py-2 pl-12 pr-1.5 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
-              />
-            </div>
-
-            {/* End Date Bound */}
-            <div className="relative">
-              <span className="absolute left-3.5 top-2 py-0.5 text-[9px] uppercase tracking-wider text-slate-400 font-bold pointer-events-none">To:</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full text-[11px] font-mono border border-slate-300 rounded-lg py-2 pl-9 pr-1.5 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
-              />
             </div>
 
           </div>

@@ -18,7 +18,9 @@ import {
   PieChart as PieIcon,
   ChevronsRight,
   TrendingDown,
-  Info
+  Info,
+  FileSpreadsheet,
+  Calendar
 } from "lucide-react";
 
 interface DashboardProps {
@@ -26,10 +28,28 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ entries }: DashboardProps) {
+  const [startDate, setStartDate] = React.useState<string>("2026-05-01");
+  const [endDate, setEndDate] = React.useState<string>("2026-05-31");
+
+  // Section-specific date filters for individual CSV exports and local widgets
+  const [streamStartDate, setStreamStartDate] = React.useState<string>("");
+  const [streamEndDate, setStreamEndDate] = React.useState<string>("");
+  const [centerStartDate, setCenterStartDate] = React.useState<string>("");
+  const [centerEndDate, setCenterEndDate] = React.useState<string>("");
+
+  // Filter entries based on selected dates
+  const filteredEntries = React.useMemo(() => {
+    return entries.filter((e) => {
+      const matchesStart = !startDate || e.date >= startDate;
+      const matchesEnd = !endDate || e.date <= endDate;
+      return matchesStart && matchesEnd;
+    });
+  }, [entries, startDate, endDate]);
+
   // Aggregate calculations
-  const totalIncome = entries.reduce((sum, e) => sum + e.amountCollected, 0);
+  const totalIncome = filteredEntries.reduce((sum, e) => sum + e.amountCollected, 0);
   
-  const totalExpenses = entries.reduce((sum, e) => {
+  const totalExpenses = filteredEntries.reduce((sum, e) => {
     const ex = e.expenses;
     return sum + (
       ex.doctorReferral + 
@@ -44,53 +64,73 @@ export default function Dashboard({ entries }: DashboardProps) {
 
   const netSavings = totalIncome - totalExpenses;
   const expensePercentage = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
-  const averageIncome = entries.length > 0 ? totalIncome / entries.length : 0;
+  const averageIncome = filteredEntries.length > 0 ? totalIncome / filteredEntries.length : 0;
 
-  // Breakdown of individual expense heads
-  const expenseBreakdown = entries.reduce(
-    (acc, e) => {
-      acc.doctorReferral += e.expenses.doctorReferral;
-      acc.audiologistCommission += e.expenses.audiologistCommission;
-      acc.clinicShare += e.expenses.clinicShare;
-      acc.anyServiceCharges += e.expenses.anyServiceCharges;
-      acc.supportStaffCommission += e.expenses.supportStaffCommission;
-      acc.otherExpenses += e.expenses.otherExpenses;
-      acc.brgProfit += e.expenses.brgProfit || 0;
-      return acc;
-    },
-    {
-      doctorReferral: 0,
-      audiologistCommission: 0,
-      clinicShare: 0,
-      anyServiceCharges: 0,
-      supportStaffCommission: 0,
-      otherExpenses: 0,
-      brgProfit: 0,
-    }
-  );
+  // Breakdown of individual expense heads locally bound by streamStartDate/streamEndDate
+  const streamFilteredEntries = React.useMemo(() => {
+    return filteredEntries.filter((e) => {
+      const matchStart = !streamStartDate || e.date >= streamStartDate;
+      const matchEnd = !streamEndDate || e.date <= streamEndDate;
+      return matchStart && matchEnd;
+    });
+  }, [filteredEntries, streamStartDate, streamEndDate]);
 
-  // Aggregation by Clinic Location
-  const locationStats = entries.reduce((acc, e) => {
-    if (!acc[e.clinicLocation]) {
-      acc[e.clinicLocation] = { income: 0, expenses: 0, count: 0 };
-    }
-    acc[e.clinicLocation].income += e.amountCollected;
-    const ex = e.expenses;
-    acc[e.clinicLocation].expenses += (
-      ex.doctorReferral + 
-      ex.audiologistCommission + 
-      ex.clinicShare + 
-      ex.anyServiceCharges + 
-      ex.supportStaffCommission + 
-      ex.otherExpenses +
-      (ex.brgProfit || 0)
+  const expenseBreakdown = React.useMemo(() => {
+    return streamFilteredEntries.reduce(
+      (acc, e) => {
+        acc.doctorReferral += e.expenses.doctorReferral;
+        acc.audiologistCommission += e.expenses.audiologistCommission;
+        acc.clinicShare += e.expenses.clinicShare;
+        acc.anyServiceCharges += e.expenses.anyServiceCharges;
+        acc.supportStaffCommission += e.expenses.supportStaffCommission;
+        acc.otherExpenses += e.expenses.otherExpenses;
+        acc.brgProfit += e.expenses.brgProfit || 0;
+        return acc;
+      },
+      {
+        doctorReferral: 0,
+        audiologistCommission: 0,
+        clinicShare: 0,
+        anyServiceCharges: 0,
+        supportStaffCommission: 0,
+        otherExpenses: 0,
+        brgProfit: 0,
+      }
     );
-    acc[e.clinicLocation].count += 1;
-    return acc;
-  }, {} as Record<string, { income: number; expenses: number; count: number }>);
+  }, [streamFilteredEntries]);
+
+  // Clinic Location breakdown locally bound by centerStartDate/centerEndDate
+  const centerFilteredEntries = React.useMemo(() => {
+    return filteredEntries.filter((e) => {
+      const matchStart = !centerStartDate || e.date >= centerStartDate;
+      const matchEnd = !centerEndDate || e.date <= centerEndDate;
+      return matchStart && matchEnd;
+    });
+  }, [filteredEntries, centerStartDate, centerEndDate]);
+
+  const locationStats = React.useMemo(() => {
+    return centerFilteredEntries.reduce<Record<string, { income: number; expenses: number; count: number }>>((acc, e) => {
+      if (!acc[e.clinicLocation]) {
+        acc[e.clinicLocation] = { income: 0, expenses: 0, count: 0 };
+      }
+      acc[e.clinicLocation].income += e.amountCollected;
+      const ex = e.expenses;
+      acc[e.clinicLocation].expenses += (
+        ex.doctorReferral + 
+        ex.audiologistCommission + 
+        ex.clinicShare + 
+        ex.anyServiceCharges + 
+        ex.supportStaffCommission + 
+        ex.otherExpenses +
+        (ex.brgProfit || 0)
+      );
+      acc[e.clinicLocation].count += 1;
+      return acc;
+    }, {});
+  }, [centerFilteredEntries]);
 
   // Group by Month for Trend (Past 6 Months or dynamic list)
-  const monthlyStats = entries.reduce((acc, e) => {
+  const monthlyStats = filteredEntries.reduce<Record<string, { monthLabel: string; income: number; expenses: number; count: number }>>((acc, e) => {
     // Expected format: YYYY-MM
     const monthKey = e.date.substring(0, 7); 
     if (!acc[monthKey]) {
@@ -109,11 +149,11 @@ export default function Dashboard({ entries }: DashboardProps) {
     );
     acc[monthKey].count += 1;
     return acc;
-  }, {} as Record<string, { monthLabel: string; income: number; expenses: number; count: number }>);
+  }, {});
 
   // Format month names (e.g., "2026-05" -> "May 2026")
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const formattedMonthlyData = Object.entries(monthlyStats)
+  const formattedMonthlyData = (Object.entries(monthlyStats) as [string, { monthLabel: string; income: number; expenses: number; count: number }][])
     .map(([key, val]) => {
       const [year, month] = key.split("-");
       const monthIdx = parseInt(month, 10) - 1;
@@ -143,9 +183,132 @@ export default function Dashboard({ entries }: DashboardProps) {
     }).format(amount);
   };
 
+  // CSV Exporter for #5 Expense Distribution Stream
+  const downloadExpenseStreamCSV = () => {
+    const cols = ["Expense Category Head", "Amount (INR)", "Percentage of Total Outflow (%)"];
+    
+    const data = [
+      { label: "Doctor Referral", val: expenseBreakdown.doctorReferral },
+      { label: "Audiologist Commission", val: expenseBreakdown.audiologistCommission },
+      { label: "Clinic Share", val: expenseBreakdown.clinicShare },
+      { label: "Any Service Charges", val: expenseBreakdown.anyServiceCharges },
+      { label: "Support Staff Commission", val: expenseBreakdown.supportStaffCommission },
+      { label: "Other Expenses", val: expenseBreakdown.otherExpenses },
+      { label: "BRG Profit", val: expenseBreakdown.brgProfit || 0 }
+    ];
+
+    const streamTotalExpenses = data.reduce((sum, item) => sum + item.val, 0);
+
+    const rows = data.map(item => {
+      const pct = streamTotalExpenses > 0 ? ((item.val / streamTotalExpenses) * 100).toFixed(2) : "0";
+      return [
+        item.label,
+        item.val,
+        `${pct}%`
+      ];
+    });
+
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `expense_distribution_stream_${streamStartDate || "all"}_to_${streamEndDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // CSV Exporter for #6 Clinic Center Analytics
+  const downloadClinicCenterAnalyticsCSV = () => {
+    const cols = [
+      "Clinic Location", "Registrations/Count", "Inflow/Income (INR)", 
+      "Outflow/Allocated (INR)", "Clinic Retention Surplus (INR)", "Expense Utilization (%)"
+    ];
+
+    const rows = (Object.entries(locationStats) as [string, { income: number; expenses: number; count: number }][]).map(([locName, stats]) => {
+      const locationSurplus = stats.income - stats.expenses;
+      const utilizationPct = stats.income > 0 ? ((stats.expenses / stats.income) * 100).toFixed(2) : "0";
+      return [
+        `"${locName.replace(/"/g, '""')}"`,
+        `${stats.count} cases`,
+        stats.income,
+        stats.expenses,
+        locationSurplus,
+        `${utilizationPct}%`
+      ];
+    });
+
+    const csvContent = [
+      cols.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `clinic_center_analytics_${centerStartDate || "all"}_to_${centerEndDate || "all"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const streamTotalExpenses = 
+    expenseBreakdown.doctorReferral + 
+    expenseBreakdown.audiologistCommission + 
+    expenseBreakdown.clinicShare + 
+    expenseBreakdown.anyServiceCharges + 
+    expenseBreakdown.supportStaffCommission + 
+    expenseBreakdown.otherExpenses +
+    (expenseBreakdown.brgProfit || 0);
+
   return (
     <div className="space-y-6">
       
+      {/* Date Bound filtering bar */}
+      <div className="no-print bg-slate-50 border border-slate-200/80 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div>
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Date-Wise Dashboard Filter</h4>
+            <p className="text-[10px] text-slate-500">Filter all diagnostics visual charts and analytics by date bounds</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] uppercase tracking-wider text-slate-400 font-bold pointer-events-none">From:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="text-xs font-mono border border-slate-300 rounded-lg py-1.5 pl-12 pr-2 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
+            />
+          </div>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] uppercase tracking-wider text-slate-400 font-bold pointer-events-none">To:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="text-xs font-mono border border-slate-300 rounded-lg py-1.5 pl-9 pr-2 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
+            />
+          </div>
+          {(startDate || endDate) && (
+            <button
+              onClick={() => { setStartDate(""); setEndDate(""); }}
+              className="text-[11px] font-bold text-red-650 hover:text-red-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              Reset Range
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 1. KEY ANALYTICS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         
@@ -201,16 +364,16 @@ export default function Dashboard({ entries }: DashboardProps) {
               <Briefcase className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remaining Net Surplus</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remaining Net Surplus (BRG Profit)</p>
               <h3 className="text-2xl sm:text-3xl font-bold font-display text-slate-800 tracking-tight mt-0.5">
-                {formatCurrency(netSavings)}
+                {formatCurrency(expenseBreakdown.brgProfit)}
               </h3>
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
-            <span>Clinic Retention Rate:</span>
+            <span>BRG Profit Margin:</span>
             <span className="bg-cyan-100/80 text-cyan-800 px-2 py-0.5 rounded-full font-semibold">
-              {(totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0).toFixed(1)}% retained
+              {(totalIncome > 0 ? (expenseBreakdown.brgProfit / totalIncome) * 100 : 0).toFixed(1)}% margins
             </span>
           </div>
         </div>
@@ -396,13 +559,45 @@ export default function Dashboard({ entries }: DashboardProps) {
         {/* Expense Allocations (1/3 width on large screens) */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-800 font-display flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
-              <PieIcon className="w-4 h-4 text-rose-500" />
-              Expense Distribution Stream
-            </h3>
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display flex items-center gap-1.5">
+                  <PieIcon className="w-4 h-4 text-rose-500" />
+                  Expense Distribution Stream
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 no-print">
+                <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase">From:</span>
+                  <input
+                    type="date"
+                    value={streamStartDate}
+                    onChange={(e) => setStreamStartDate(e.target.value)}
+                    className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                  />
+                </div>
+                <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase">To:</span>
+                  <input
+                    type="date"
+                    value={streamEndDate}
+                    onChange={(e) => setStreamEndDate(e.target.value)}
+                    className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                  />
+                </div>
+                <button
+                  onClick={downloadExpenseStreamCSV}
+                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 h-[24px] rounded text-[9px] uppercase tracking-wider transition-colors cursor-pointer shadow-xs border border-emerald-700/10"
+                  title="Download Expense Stream CSV"
+                >
+                  <FileSpreadsheet className="w-3 h-3" />
+                  <span>Export</span>
+                </button>
+              </div>
+            </div>
 
             {/* Bar stacks mapping overall distributed coins */}
-            {totalExpenses === 0 ? (
+            {streamTotalExpenses === 0 ? (
               <div className="h-60 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                 <PieIcon className="w-10 h-10 text-slate-300 mb-2" />
                 <p className="text-xs font-semibold text-slate-500">No expense records found</p>
@@ -417,12 +612,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-violet-500" />
                       1. Doctor Referral
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.doctorReferral)} ({((expenseBreakdown.doctorReferral / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.doctorReferral)} ({((expenseBreakdown.doctorReferral / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-violet-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.doctorReferral / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.doctorReferral / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -434,12 +629,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-indigo-500" />
                       2. Audiologist Commission
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.audiologistCommission)} ({((expenseBreakdown.audiologistCommission / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.audiologistCommission)} ({((expenseBreakdown.audiologistCommission / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-indigo-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.audiologistCommission / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.audiologistCommission / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -451,12 +646,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-blue-500" />
                       3. Clinic Share
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.clinicShare)} ({((expenseBreakdown.clinicShare / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.clinicShare)} ({((expenseBreakdown.clinicShare / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-blue-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.clinicShare / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.clinicShare / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -468,12 +663,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-amber-500" />
                       4. Any Service Charges
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.anyServiceCharges)} ({((expenseBreakdown.anyServiceCharges / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.anyServiceCharges)} ({((expenseBreakdown.anyServiceCharges / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-amber-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.anyServiceCharges / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.anyServiceCharges / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -485,12 +680,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       5. Support Staff Commission
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.supportStaffCommission)} ({((expenseBreakdown.supportStaffCommission / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.supportStaffCommission)} ({((expenseBreakdown.supportStaffCommission / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.supportStaffCommission / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.supportStaffCommission / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -502,12 +697,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-slate-500" />
                       6. Other Expenses
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.otherExpenses)} ({((expenseBreakdown.otherExpenses / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.otherExpenses)} ({((expenseBreakdown.otherExpenses / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-slate-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${(expenseBreakdown.otherExpenses / totalExpenses) * 100}%` }}
+                      style={{ width: `${(expenseBreakdown.otherExpenses / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -519,12 +714,12 @@ export default function Dashboard({ entries }: DashboardProps) {
                       <span className="w-2 h-2 rounded-full bg-teal-500" />
                       7. BRG Profit
                     </span>
-                    <span className="font-mono">{formatCurrency(expenseBreakdown.brgProfit || 0)} ({(( (expenseBreakdown.brgProfit || 0) / totalExpenses) * 100).toFixed(0)}%)</span>
+                    <span className="font-mono">{formatCurrency(expenseBreakdown.brgProfit || 0)} ({(( (expenseBreakdown.brgProfit || 0) / streamTotalExpenses) * 100).toFixed(0)}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div 
                       className="bg-teal-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${((expenseBreakdown.brgProfit || 0) / totalExpenses) * 100}%` }}
+                      style={{ width: `${((expenseBreakdown.brgProfit || 0) / streamTotalExpenses) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -535,8 +730,8 @@ export default function Dashboard({ entries }: DashboardProps) {
 
           <div className="mt-4 border-t border-slate-100 pt-4">
             <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs font-semibold text-slate-700">
-              <span>Total Disbursed Balance:</span>
-              <span className="font-mono text-rose-600 font-bold">{formatCurrency(totalExpenses)}</span>
+              <span>Total Stream Outflow:</span>
+              <span className="font-mono text-rose-600 font-bold">{formatCurrency(streamTotalExpenses)}</span>
             </div>
           </div>
         </div>
@@ -546,10 +741,42 @@ export default function Dashboard({ entries }: DashboardProps) {
       {/* 3. CLINIC LOCATIONS SPLIT TABLE */}
       {entries.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-          <h3 className="text-base font-bold text-slate-800 font-display flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
-            <MapPin className="w-4 h-4 text-emerald-600" />
-            Clinic Center Analytics
-          </h3>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 font-display flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                Clinic Center Analytics
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 no-print">
+              <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                <span className="text-[8px] font-bold text-slate-400 uppercase">From:</span>
+                <input
+                  type="date"
+                  value={centerStartDate}
+                  onChange={(e) => setCenterStartDate(e.target.value)}
+                  className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                />
+              </div>
+              <div className="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-lg">
+                <span className="text-[8px] font-bold text-slate-400 uppercase">To:</span>
+                <input
+                  type="date"
+                  value={centerEndDate}
+                  onChange={(e) => setCenterEndDate(e.target.value)}
+                  className="text-[10px] font-mono border-none outline-hidden p-0 w-[90px] h-auto bg-transparent focus:ring-0 focus:outline-hidden"
+                />
+              </div>
+              <button
+                onClick={downloadClinicCenterAnalyticsCSV}
+                className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 h-[24px] rounded text-[9px] uppercase tracking-wider transition-colors cursor-pointer shadow-xs border border-emerald-700/10"
+                title="Download Clinic Center Analytics CSV"
+              >
+                <FileSpreadsheet className="w-3 h-3" />
+                <span>Export</span>
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -563,7 +790,7 @@ export default function Dashboard({ entries }: DashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {Object.entries(locationStats).map(([locName, stats]) => {
+                {(Object.entries(locationStats) as [string, { income: number; expenses: number; count: number }][]).map(([locName, stats]) => {
                   const locationSurplus = stats.income - stats.expenses;
                   const utilizationPct = stats.income > 0 ? (stats.expenses / stats.income) * 100 : 0;
                   return (
