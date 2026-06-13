@@ -373,11 +373,18 @@ export default function PatientsDatabase({
                                       <Calendar className="w-3 h-3 text-slate-400" />
                                       {visit.date}
                                     </div>
-                                    {visit.paymentDate && visit.paymentDate !== visit.date && (
-                                      <div className="text-[9px] text-indigo-600 font-semibold flex items-center gap-0.5 mt-0.5">
-                                        <span>Paid on:</span>
-                                        <span className="font-mono">{visit.paymentDate}</span>
-                                      </div>
+                                    {visit.paymentDate && (
+                                      visit.paymentDate === "Pending" ? (
+                                        <div className="text-[9px] text-amber-600 font-extrabold flex items-center gap-1 mt-0.5 animate-pulse bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 w-max">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                                          <span>Unpaid / Pending</span>
+                                        </div>
+                                      ) : visit.paymentDate !== visit.date ? (
+                                        <div className="text-[9px] text-indigo-600 font-semibold flex items-center gap-0.5 mt-0.5">
+                                          <span>Paid on:</span>
+                                          <span className="font-mono">{visit.paymentDate}</span>
+                                        </div>
+                                      ) : null
                                     )}
                                   </td>
                                   <td className="p-3 font-mono font-bold text-slate-500 text-[10.5px]">

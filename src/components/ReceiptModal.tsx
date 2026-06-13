@@ -159,11 +159,17 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   <span className="text-slate-500">Service Date:</span>
                   <span className="text-slate-800 font-mono">{entry.date}</span>
                 </div>
-                {entry.paymentDate && (
+                 {entry.paymentDate && (
                   <div className="flex items-center gap-2 justify-start sm:justify-end">
                     <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span className="text-slate-500">Payment Date:</span>
-                    <span className="text-slate-800 font-mono">{entry.paymentDate}</span>
+                    {entry.paymentDate === "Pending" ? (
+                      <span className="text-[10px] font-bold bg-amber-55 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full select-none animate-pulse">
+                        ⚠️ Pending / Due
+                      </span>
+                    ) : (
+                      <span className="text-slate-800 font-mono">{entry.paymentDate}</span>
+                    )}
                   </div>
                 )}
                 <div className="flex items-center gap-2 justify-start sm:justify-end">

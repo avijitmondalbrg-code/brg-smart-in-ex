@@ -419,6 +419,15 @@ export default function TransactionsTable({
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           {e.date}
                         </span>
+                        {e.paymentDate === "Pending" ? (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 text-[9px] bg-amber-50 text-amber-700 font-extrabold px-1.5 py-0.5 rounded border border-amber-200 animate-pulse select-none">
+                              <span className="h-1.5 w-1.5 bg-amber-500 rounded-full"></span> Unpaid / Pending
+                            </span>
+                          </div>
+                        ) : e.paymentDate && e.paymentDate !== e.date ? (
+                          <p className="text-[9px] text-indigo-500 font-semibold mt-1">Paid: <span className="font-mono">{e.paymentDate}</span></p>
+                        ) : null}
                       </td>
 
                       {/* Clinic / Service */}
@@ -721,7 +730,7 @@ export default function TransactionsTable({
 
                   <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold">
                     <span className="bg-teal-50 text-teal-800 px-2 py-0.5 rounded font-bold font-display text-[10px] border border-teal-100">
-                      Bill No: {e.billNo.replace("BRG-BILL-", "")}
+                      Bill No: {e.billNo.startsWith("BRG-BILL-") ? e.billNo.replace("BRG-BILL-", "") : e.billNo}
                     </span>
                     <button 
                       onClick={() => toggleRow(e.id)}

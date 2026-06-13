@@ -59,6 +59,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   const [notes, setNotes] = useState("");
   const [clinicLocation, setClinicLocation] = useState(CLINIC_LOCATIONS[0]);
   const [billNo, setBillNo] = useState("");
+  const [isPaymentPending, setIsPaymentPending] = useState(false);
 
   // States for multiple services/procedures under one invoice
   const [isMultipleServices, setIsMultipleServices] = useState<boolean>(false);
@@ -88,14 +89,65 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     otherExpenses
   );
 
-  // Trigger id generation based on date
-  const regenerateIds = (chosenDate: string) => {
-    const cleanDate = chosenDate.replace(/-/g, "");
-    const randPt = Math.floor(1000 + Math.random() * 9000);
-    const randBill = Math.floor(10000 + Math.random() * 90000);
+  // Get financial year segment in YY-YY format based on Indian Fiscal Year (April 1st to March 31st)
+  const getFinancialYearSegment = (chosenDate: string): string => {
+    const dateObj = new Date(chosenDate);
+    if (isNaN(dateObj.getTime())) return "26-27";
     
-    setPatientId(`PT-${cleanDate}-${randPt}`);
-    setBillNo(`BRG-BILL-${cleanDate}-${randBill}`);
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth() + 1; // getMonth() is 0-11
+    
+    let startYear = year;
+    if (month < 4) {
+      startYear = year - 1;
+    }
+    const endYear = startYear + 1;
+    
+    const startYrStr = String(startYear).slice(-2);
+    const endYrStr = String(endYear).slice(-2);
+    
+    return `${startYrStr}-${endYrStr}`;
+  };
+
+  // Trigger id generation based on date and dynamic entries sequences
+  const regenerateIds = (chosenDate: string) => {
+    const fyStr = getFinancialYearSegment(chosenDate);
+    
+    const ptPrefix = `BR-PT-${fyStr}-`;
+    const blPrefix = `BR-BL-${fyStr}-`;
+
+    let maxPtSeq = 0;
+    let maxBlSeq = 0;
+
+    // Search existing entries to find the maximum serial sequence number
+    if (entries && Array.isArray(entries)) {
+      entries.forEach(entry => {
+        if (entry.patientId && entry.patientId.startsWith(ptPrefix)) {
+          const suffix = entry.patientId.substring(ptPrefix.length);
+          const seqVal = parseInt(suffix, 10);
+          if (!isNaN(seqVal) && seqVal > maxPtSeq) {
+            maxPtSeq = seqVal;
+          }
+        }
+        
+        if (entry.billNo && entry.billNo.startsWith(blPrefix)) {
+          const suffix = entry.billNo.substring(blPrefix.length);
+          const seqVal = parseInt(suffix, 10);
+          if (!isNaN(seqVal) && seqVal > maxBlSeq) {
+            maxBlSeq = seqVal;
+          }
+        }
+      });
+    }
+
+    const nextPtSeq = maxPtSeq + 1;
+    const nextBlSeq = maxBlSeq + 1;
+
+    const nextPtId = `${ptPrefix}${String(nextPtSeq).padStart(4, "0")}`;
+    const nextBlNo = `${blPrefix}${String(nextBlSeq).padStart(4, "0")}`;
+
+    setPatientId(nextPtId);
+    setBillNo(nextBlNo);
   };
 
   const [isMatchedPatient, setIsMatchedPatient] = useState(false);
@@ -107,7 +159,13 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setPatientContact(editingEntry.patientContact || "");
       setPatientId(editingEntry.patientId);
       setDate(editingEntry.date);
-      setPaymentDate(editingEntry.paymentDate || editingEntry.date);
+      if (editingEntry.paymentDate === "Pending" || !editingEntry.paymentDate) {
+        setIsPaymentPending(true);
+        setPaymentDate("");
+      } else {
+        setIsPaymentPending(false);
+        setPaymentDate(editingEntry.paymentDate);
+      }
       setReferredDoctor(editingEntry.referredDoctor || "");
       setAslpName(editingEntry.aslpName || "");
       setIsMatchedPatient(false);
@@ -155,6 +213,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setReferredDoctor("");
       setAslpName("");
       setIsMatchedPatient(false);
+      setIsPaymentPending(false);
       const today = new Date().toISOString().substring(0, 10);
       setDate(today);
       setPaymentDate(today);
@@ -194,11 +253,19 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
         setIsMatchedPatient(true);
       } else {
         setIsMatchedPatient(false);
+        const currentFy = getFinancialYearSegment(date);
+        if (!patientId.startsWith(`BR-PT-${currentFy}-`)) {
+          regenerateIds(date);
+        }
       }
     } else {
       setIsMatchedPatient(false);
+      const currentFy = getFinancialYearSegment(date);
+      if (!patientId.startsWith(`BR-PT-${currentFy}-`)) {
+        regenerateIds(date);
+      }
     }
-  }, [patientContact, entries, editingEntry]);
+  }, [patientContact, entries, editingEntry, date, patientId]);
 
   // Automatically select standard referral (preset 0) or direct walk-in (preset 1)
   useEffect(() => {
@@ -298,7 +365,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       patientContact: patientContact.trim(),
       patientId,
       date,
-      paymentDate,
+      paymentDate: isPaymentPending ? "Pending" : paymentDate,
       serviceType: finalServiceType,
       amountCollected,
       paymentMode,
@@ -540,18 +607,36 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
 
                 {/* Date of Payment */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-505" />
-                    Date Of Payment <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                      Date Of Payment {!isPaymentPending && <span className="text-rose-500">*</span>}
+                    </span>
+                    <label className="inline-flex items-center gap-1 text-[10px] text-indigo-600 cursor-pointer font-bold select-none">
+                      <input
+                        type="checkbox"
+                        checked={isPaymentPending}
+                        onChange={(e) => setIsPaymentPending(e.target.checked)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-600"
+                      />
+                      <span>Pending / NA</span>
+                    </label>
                   </label>
-                  <input
-                    type="date"
-                    required
-                    value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
-                    id="inp-payment-date"
-                  />
+                  {isPaymentPending ? (
+                    <div className="w-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg py-2.5 px-3 flex items-center gap-1.5 animate-pulse">
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+                      <span>Payment Pending / NA</span>
+                    </div>
+                  ) : (
+                    <input
+                      type="date"
+                      required
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
+                      id="inp-payment-date"
+                    />
+                  )}
                 </div>
 
                 {/* Service Type Dropdown */}
@@ -677,18 +762,36 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
 
               {/* Date of Payment */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-indigo-505" />
-                  Date Of Payment <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between gap-1">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                    Date Of Payment {!isPaymentPending && <span className="text-rose-500">*</span>}
+                  </span>
+                  <label className="inline-flex items-center gap-1 text-[10px] text-indigo-600 cursor-pointer font-bold select-none">
+                    <input
+                      type="checkbox"
+                      checked={isPaymentPending}
+                      onChange={(e) => setIsPaymentPending(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer accent-indigo-600"
+                    />
+                    <span>Pending / NA</span>
+                  </label>
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
-                  id="inp-payment-date-multi"
-                />
+                {isPaymentPending ? (
+                  <div className="w-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg py-2.5 px-3 flex items-center gap-1.5 animate-pulse">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+                    <span>Payment Pending / NA</span>
+                  </div>
+                ) : (
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="inp-payment-date-multi"
+                  />
+                )}
               </div>
 
               {/* Discount Input for multi service */}
