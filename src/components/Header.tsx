@@ -22,6 +22,7 @@ interface HeaderProps {
   onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
   totalEntriesCount: number;
   onLogout?: () => void;
+  userRole?: string;
 }
 
 export default function Header({ 
@@ -30,7 +31,8 @@ export default function Header({
   onExportJSON, 
   onImportJSON,
   totalEntriesCount,
-  onLogout
+  onLogout,
+  userRole = "admin"
 }: HeaderProps) {
   // Setup standard high-fidelity Indian Standard Time format
   const getISTTime = () => {
@@ -96,6 +98,12 @@ export default function Header({
           {/* Quick Metrics and Actions */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             
+            {/* Active User Label Badge */}
+            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/60 rounded-lg px-3 py-1.5 text-xs text-emerald-800 font-extrabold select-none">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse block"></span>
+              <span className="font-sans">Role: <span className="text-emerald-700 font-mono text-[11px] tracking-wide font-extrabold">{userRole.toUpperCase()}</span></span>
+            </div>
+
             {/* Live Clock / User info */}
             <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-mono">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -104,7 +112,7 @@ export default function Header({
 
             {/* Backups & Actions */}
             <div className="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
-              {totalEntriesCount === 0 && (
+              {userRole === "admin" && totalEntriesCount === 0 && (
                 <button
                   type="button"
                   onClick={onLoadDemo}
@@ -117,7 +125,7 @@ export default function Header({
                 </button>
               )}
 
-              {totalEntriesCount > 0 && (
+              {userRole === "admin" && totalEntriesCount > 0 && (
                 <button
                   type="button"
                   onClick={onClearAll}
@@ -130,31 +138,35 @@ export default function Header({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={onExportJSON}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Backup records as JSON"
-                id="btn-export-json"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden md:inline">Download Backup</span>
-              </button>
+              {userRole === "admin" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onExportJSON}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    title="Backup records as JSON"
+                    id="btn-export-json"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden md:inline">Download Backup</span>
+                  </button>
 
-              <label 
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Upload previous backup file"
-                id="lbl-import-json"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden md:inline">Restore</span>
-                <input 
-                  type="file" 
-                  accept=".json" 
-                  onChange={onImportJSON} 
-                  className="hidden" 
-                />
-              </label>
+                  <label 
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                    title="Upload previous backup file"
+                    id="lbl-import-json"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden md:inline">Restore</span>
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={onImportJSON} 
+                      className="hidden" 
+                    />
+                  </label>
+                </>
+              )}
 
               {onLogout && (
                 <button

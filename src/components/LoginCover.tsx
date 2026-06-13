@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 interface LoginCoverProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (role: string) => void;
 }
 
 export default function LoginCover({ onLoginSuccess }: LoginCoverProps) {
@@ -42,10 +42,20 @@ export default function LoginCover({ onLoginSuccess }: LoginCoverProps) {
       const trimmedUser = username.trim();
       const trimmedPass = password.trim();
 
+      let matchedRole: string | null = null;
       if (trimmedUser === "admin" && trimmedPass === "admin@2026") {
+        matchedRole = "admin";
+      } else if (trimmedUser.toUpperCase() === "ASLP" && trimmedPass === "Audio1234") {
+        matchedRole = "ASLP";
+      } else if (trimmedUser.toUpperCase() === "SUPPORT" && trimmedPass === "Support1234") {
+        matchedRole = "SUPPORT";
+      }
+
+      if (matchedRole) {
         setSuccessAnimation(true);
+        const roleToPass = matchedRole;
         setTimeout(() => {
-          onLoginSuccess();
+          onLoginSuccess(roleToPass);
           setIsSubmitting(false);
         }, 800);
       } else {
@@ -262,8 +272,16 @@ export default function LoginCover({ onLoginSuccess }: LoginCoverProps) {
             {/* Helpful hint footer box */}
             <div className="pt-2 text-center">
               <p className="text-[10px] text-slate-500 italic max-w-xs mx-auto leading-normal">
-                Credentials have been assigned by default for audit purposes.<br />
-                ID: <strong className="text-slate-400 not-italic font-mono">admin</strong> &bull; Pass: <strong className="text-slate-400 not-italic font-mono">admin@2026</strong>
+                Credentials assigned by default for audit &amp; testing purposes:<br />
+                <span className="not-italic block mt-1 font-mono text-slate-400">
+                  ID: <strong className="text-white">admin</strong> / Pass: <strong className="text-white">admin@2026</strong> (Full Access)
+                </span>
+                <span className="not-italic block font-mono text-slate-400">
+                  ID: <strong className="text-white">ASLP</strong> / Pass: <strong className="text-white">Audio1234</strong> (No Delete / Hides Admin Tools)
+                </span>
+                <span className="not-italic block font-mono text-slate-400">
+                  ID: <strong className="text-white">SUPPORT</strong> / Pass: <strong className="text-white">Support1234</strong> (No Delete / Hides Admin Tools)
+                </span>
               </p>
             </div>
 

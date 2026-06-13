@@ -56,6 +56,15 @@ export default function App() {
     }
   });
 
+  // User role state
+  const [userRole, setUserRole] = useState<string>(() => {
+    try {
+      return localStorage.getItem("brg_smart_inex_user_role") || "admin";
+    } catch (e) {
+      return "admin";
+    }
+  });
+
   // Primary state holding all financial collections
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   
@@ -142,20 +151,24 @@ export default function App() {
     }, 4000);
   };
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (role: string) => {
     try {
       localStorage.setItem("brg_smart_inex_authorized", "true");
+      localStorage.setItem("brg_smart_inex_user_role", role);
     } catch (e) {}
+    setUserRole(role);
     setIsLoggedIn(true);
-    triggerNotification("Clearance granted. Welcome to your ledger space!", "success");
+    triggerNotification(`Clearance granted as ${role}. Welcome to your ledger space!`, "success");
   };
 
   const handleLogout = async () => {
     try {
       await terminateSession();
       localStorage.removeItem("brg_smart_inex_authorized");
+      localStorage.removeItem("brg_smart_inex_user_role");
     } catch (e) {}
     setIsLoggedIn(false);
+    setUserRole("admin");
     triggerNotification("Session terminated securely and signed out.", "info");
   };
 
@@ -374,6 +387,7 @@ export default function App() {
         onImportJSON={handleImportJSON}
         totalEntriesCount={entries.length}
         onLogout={handleLogout}
+        userRole={userRole}
       />
 
       {/* Main Container */}
@@ -461,7 +475,11 @@ export default function App() {
           {entries.length === 0 && (
             <div className="text-xs bg-amber-50 border border-amber-100 p-2.5 rounded-lg flex items-center gap-2 text-amber-800 font-semibold max-w-sm sm:max-w-xs animate-pulse">
               <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
-              <span>Empty Ledger detected! Click <strong>Load Demo Data</strong> above to test diagnostic trends instantly.</span>
+              {userRole === "admin" ? (
+                <span>Empty Ledger detected! Click <strong>Load Demo Data</strong> above to test diagnostic trends instantly.</span>
+              ) : (
+                <span>Empty Ledger detected! Please report to your system administrator or input fresh recordings.</span>
+              )}
             </div>
           )}
 
@@ -483,7 +501,7 @@ export default function App() {
           
           /* VIEW 1: DIAGNOSTIC ANALYTICS DASHBOARD */
           <div className="animate-fadeIn">
-            <Dashboard entries={entries} />
+            <Dashboard entries={entries} userRole={userRole} />
           </div>
 
         ) : activeTab === "expenses" ? (
@@ -506,6 +524,7 @@ export default function App() {
               onDelete={handleDeleteTrigger}
               onOpenReceipt={(entry) => setReceiptEntry(entry)}
               onDeleteCompletePatientRecords={handleDeleteCompletePatientRecords}
+              userRole={userRole}
             />
           </div>
 
@@ -549,6 +568,7 @@ export default function App() {
                 onDelete={handleDeleteTrigger}
                 onOpenReceipt={(entry) => setReceiptEntry(entry)}
                 onUpdateExpenses={handleUpdateExpenses}
+                userRole={userRole}
               />
             </div>
 

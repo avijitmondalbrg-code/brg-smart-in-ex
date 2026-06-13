@@ -37,6 +37,7 @@ interface TransactionsTableProps {
   onDelete: (id: string) => void;
   onOpenReceipt: (entry: IncomeEntry) => void;
   onUpdateExpenses?: (id: string, expenses: ExpenseDistribution) => void;
+  userRole?: string;
 }
 
 type SortField = "date" | "amountCollected" | "patientName";
@@ -47,7 +48,8 @@ export default function TransactionsTable({
   onEdit, 
   onDelete, 
   onOpenReceipt,
-  onUpdateExpenses
+  onUpdateExpenses,
+  userRole = "admin"
 }: TransactionsTableProps) {
   // Query Filters State
   const [searchTerm, setSearchTerm] = useState("");
@@ -481,14 +483,16 @@ export default function TransactionsTable({
                           </button>
 
                           {/* Delete */}
-                          <button
-                            onClick={() => onDelete(e.id)}
-                            className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-md transition-all cursor-pointer"
-                            title="Delete permanently"
-                            id={`btn-delete-${e.id}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {userRole === "admin" && (
+                            <button
+                              onClick={() => onDelete(e.id)}
+                              className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-md transition-all cursor-pointer"
+                              title="Delete permanently"
+                              id={`btn-delete-${e.id}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                         </div>
                       </td>
@@ -921,13 +925,15 @@ export default function TransactionsTable({
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>Edit</span>
                     </button>
-                    <button
-                      onClick={() => onDelete(e.id)}
-                      className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100 rounded-md text-xs font-semibold flex items-center gap-1.5"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
+                    {userRole === "admin" && (
+                      <button
+                        onClick={() => onDelete(e.id)}
+                        className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100 rounded-md text-xs font-semibold flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
                   </div>
 
                 </div>

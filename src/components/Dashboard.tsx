@@ -25,9 +25,10 @@ import {
 
 interface DashboardProps {
   entries: IncomeEntry[];
+  userRole?: string;
 }
 
-export default function Dashboard({ entries }: DashboardProps) {
+export default function Dashboard({ entries, userRole = "admin" }: DashboardProps) {
   const [startDate, setStartDate] = React.useState<string>("2026-05-01");
   const [endDate, setEndDate] = React.useState<string>("2026-05-31");
 
@@ -409,7 +410,12 @@ export default function Dashboard({ entries }: DashboardProps) {
               <div className="h-60 sm:h-72 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                 <PieIcon className="w-10 h-10 text-slate-300 animate-pulse mb-2" />
                 <p className="text-xs font-semibold text-slate-600">None to visualize</p>
-                <p className="text-[11px] text-slate-400 max-w-xs mt-1">Please insert fresh income recordings or use the "Load Demo Data" utility above to unlock dashboards instantly.</p>
+                <p className="text-[11px] text-slate-400 max-w-xs mt-1">
+                  {userRole === "admin" 
+                    ? `Please insert fresh income recordings or use the "Load Demo Data" utility above to unlock dashboards instantly.`
+                    : `Please insert fresh income recordings to unlock dashboards instantly.`
+                  }
+                </p>
               </div>
             ) : (
               <div className="relative">

@@ -32,6 +32,7 @@ interface PatientsDatabaseProps {
   onDelete: (id: string) => void;
   onOpenReceipt: (entry: IncomeEntry) => void;
   onDeleteCompletePatientRecords?: (contact: string) => void;
+  userRole?: string;
 }
 
 export default function PatientsDatabase({ 
@@ -39,7 +40,8 @@ export default function PatientsDatabase({
   onEdit, 
   onDelete, 
   onOpenReceipt,
-  onDeleteCompletePatientRecords
+  onDeleteCompletePatientRecords,
+  userRole = "admin"
 }: PatientsDatabaseProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
@@ -316,7 +318,7 @@ export default function PatientsDatabase({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {onDeleteCompletePatientRecords && hasContact && (
+                        {userRole === "admin" && onDeleteCompletePatientRecords && hasContact && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -423,13 +425,15 @@ export default function PatientsDatabase({
                                         <Edit3 className="w-3.5 h-3.5" />
                                       </button>
                                       
-                                      <button
-                                        onClick={() => onDelete(visit.id)}
-                                        className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border rounded transition-colors bg-white cursor-pointer"
-                                        title="Delete this visit collection"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
+                                      {userRole === "admin" && (
+                                        <button
+                                          onClick={() => onDelete(visit.id)}
+                                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border rounded transition-colors bg-white cursor-pointer"
+                                          title="Delete this visit collection"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>
