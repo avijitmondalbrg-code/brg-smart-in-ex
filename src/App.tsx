@@ -12,6 +12,7 @@ import IncomeForm from "./components/IncomeForm";
 import TransactionsTable from "./components/TransactionsTable";
 import ReceiptModal from "./components/ReceiptModal";
 import ExpensesDashboard from "./components/ExpensesDashboard";
+import PatientsDatabase from "./components/PatientsDatabase";
 import LoginCover from "./components/LoginCover";
 import { 
   Building2, 
@@ -24,7 +25,8 @@ import {
   ClipboardList,
   AlertCircle,
   TrendingDown,
-  CloudSun
+  CloudSun,
+  Users
 } from "lucide-react";
 import { 
   db, 
@@ -57,8 +59,8 @@ export default function App() {
   // Primary state holding all financial collections
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   
-  // Tab states: "dashboard" or "ledger" or "expenses"
-  const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "expenses">("dashboard");
+  // Tab states: "dashboard" or "ledger" or "expenses" or "patients"
+  const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "expenses" | "patients">("dashboard");
 
   // Edit statement helper state
   const [editingEntry, setEditingEntry] = useState<IncomeEntry | null>(null);
@@ -238,6 +240,22 @@ export default function App() {
     }
   };
 
+  // 3.5 Delete whole patient's profile records
+  const handleDeleteCompletePatientRecords = async (contact: string) => {
+    try {
+      const matched = entries.filter(e => e.patientContact?.trim() === contact.trim());
+      if (matched.length === 0) return;
+      triggerNotification(`Sweeping all records under contact: ${contact}...`, "info");
+      for (const e of matched) {
+        await deleteDoc(doc(db, "entries", e.id));
+      }
+      triggerNotification(`Patient profile and associated billing restored logs cleared!`, "danger");
+    } catch (error) {
+      triggerNotification("Failed database profile purge operation.", "danger");
+      handleFirestoreError(error, OperationType.DELETE, `entries/contact/${contact}`);
+    }
+  };
+
   // 4. Load realistic demo recordings
   const handleLoadDemo = async () => {
     const confirmed = window.confirm("Do you want to initialize the server database with 15 standard Bengal Rehabilitation therapy records?");
@@ -411,6 +429,18 @@ export default function App() {
               <span>Outflow Expenses Mgt</span>
             </button>
             <button
+              onClick={() => setActiveTab("patients")}
+              className={`flex items-center gap-1.5 px-4.5 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
+                activeTab === "patients"
+                  ? "bg-white text-slate-800 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+              id="tab-patients-directory"
+            >
+              <Users className="w-4 h-4 text-indigo-600" />
+              <span>Registered Patient Database</span>
+            </button>
+            <button
               onClick={() => {
                 setActiveTab("ledger");
                 setEditingEntry(null); // Cancel active edits if they switch fresh
@@ -463,6 +493,22 @@ export default function App() {
             <ExpensesDashboard entries={entries} />
           </div>
 
+        ) : activeTab === "patients" ? (
+
+          /* VIEW 4: REGISTERED PATIENT DATABASE DASHBOARD DIRECTORY */
+          <div className="animate-fadeIn">
+            <PatientsDatabase 
+              entries={entries}
+              onEdit={(entry) => {
+                setEditingEntry(entry);
+                setActiveTab("ledger");
+              }}
+              onDelete={handleDeleteTrigger}
+              onOpenReceipt={(entry) => setReceiptEntry(entry)}
+              onDeleteCompletePatientRecords={handleDeleteCompletePatientRecords}
+            />
+          </div>
+
         ) : (
           
           /* VIEW 2: DIRECT ENTRY FORM & RECORDINGS LEDGER */
@@ -485,6 +531,7 @@ export default function App() {
               onSubmit={handleSubmitEntry}
               editingEntry={editingEntry}
               onCancelEdit={() => setEditingEntry(null)}
+              entries={entries}
             />
 
             {/* Structured Transactions ledger */}

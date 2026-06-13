@@ -125,6 +125,13 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   <span className="text-slate-500">Patient Name:</span>
                   <span className="text-slate-800 font-bold">{entry.patientName}</span>
                 </div>
+                {entry.patientContact && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 shrink-0">📞</span>
+                    <span className="text-slate-500">Mobile No:</span>
+                    <span className="text-indigo-805 font-bold font-mono">{entry.patientContact}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-slate-500">Patient ID:</span>
@@ -152,6 +159,13 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   <span className="text-slate-500">Service Date:</span>
                   <span className="text-slate-800 font-mono">{entry.date}</span>
                 </div>
+                {entry.paymentDate && (
+                  <div className="flex items-center gap-2 justify-start sm:justify-end">
+                    <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <span className="text-slate-500">Payment Date:</span>
+                    <span className="text-slate-800 font-mono">{entry.paymentDate}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 justify-start sm:justify-end">
                   <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-slate-500">Method:</span>

@@ -29,22 +29,27 @@ import {
   Save, 
   X,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Phone,
+  Check
 } from "lucide-react";
 
 interface IncomeFormProps {
   onSubmit: (entry: Omit<IncomeEntry, "id" | "createdTime"> & { id?: string }) => void;
   editingEntry?: IncomeEntry | null;
   onCancelEdit?: () => void;
+  entries: IncomeEntry[];
 }
 
-export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: IncomeFormProps) {
+export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entries }: IncomeFormProps) {
   // Form core states
   const [patientName, setPatientName] = useState("");
+  const [patientContact, setPatientContact] = useState("");
   const [patientId, setPatientId] = useState("");
   const [referredDoctor, setReferredDoctor] = useState("");
   const [aslpName, setAslpName] = useState("");
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().substring(0, 10));
   const [serviceType, setServiceType] = useState(SERVICE_TYPES[0]);
   const [customServiceType, setCustomServiceType] = useState("");
   const [amountCollected, setAmountCollected] = useState<number>(0);
@@ -93,14 +98,19 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
     setBillNo(`BRG-BILL-${cleanDate}-${randBill}`);
   };
 
+  const [isMatchedPatient, setIsMatchedPatient] = useState(false);
+
   // Setup form values for new or edited items
   useEffect(() => {
     if (editingEntry) {
       setPatientName(editingEntry.patientName);
+      setPatientContact(editingEntry.patientContact || "");
       setPatientId(editingEntry.patientId);
       setDate(editingEntry.date);
+      setPaymentDate(editingEntry.paymentDate || editingEntry.date);
       setReferredDoctor(editingEntry.referredDoctor || "");
       setAslpName(editingEntry.aslpName || "");
+      setIsMatchedPatient(false);
       
       const isCustomService = !SERVICE_TYPES.includes(editingEntry.serviceType);
       if (isCustomService) {
@@ -141,10 +151,13 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
     } else {
       // Clear forms
       setPatientName("");
+      setPatientContact("");
       setReferredDoctor("");
       setAslpName("");
+      setIsMatchedPatient(false);
       const today = new Date().toISOString().substring(0, 10);
       setDate(today);
+      setPaymentDate(today);
       setServiceType(SERVICE_TYPES[0]);
       setCustomServiceType("");
       setDiscount(0);
@@ -162,6 +175,30 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
       setSelectedPresetIndex(0); // standard referral
     }
   }, [editingEntry]);
+
+  // Auto-fill patient details backend matching
+  useEffect(() => {
+    if (editingEntry) return; // Prevent during editing
+    const cleanNum = patientContact.trim().replace(/\D/g, "");
+    if (cleanNum.length >= 10) {
+      const match = entries.find(e => {
+        const entContact = e.patientContact?.trim().replace(/\D/g, "") || "";
+        return entContact === cleanNum;
+      });
+      if (match) {
+        setPatientName(match.patientName);
+        setPatientId(match.patientId);
+        if (match.referredDoctor) setReferredDoctor(match.referredDoctor);
+        if (match.aslpName) setAslpName(match.aslpName);
+        if (match.clinicLocation) setClinicLocation(match.clinicLocation);
+        setIsMatchedPatient(true);
+      } else {
+        setIsMatchedPatient(false);
+      }
+    } else {
+      setIsMatchedPatient(false);
+    }
+  }, [patientContact, entries, editingEntry]);
 
   // Automatically select standard referral (preset 0) or direct walk-in (preset 1)
   useEffect(() => {
@@ -258,8 +295,10 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
 
     const entryPayload = {
       patientName: patientName.trim(),
+      patientContact: patientContact.trim(),
       patientId,
       date,
+      paymentDate,
       serviceType: finalServiceType,
       amountCollected,
       paymentMode,
@@ -292,8 +331,10 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
     } else {
       // Clear patient specifics for swift next entries
       setPatientName("");
+      setPatientContact("");
       setReferredDoctor("");
       setAslpName("");
+      setIsMatchedPatient(false);
       regenerateIds(date);
       setNotes("");
     }
@@ -328,9 +369,35 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
         {/* Inputs */}
         <div className="p-5 space-y-4">
           
-          {/* Patient Details Row (Symmetrical 4 columns on desktop) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Patient Details Row (Symmetrical 5 columns on desktop) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             
+            {/* Patient Mobile No. */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                  Mobile Number <span className="text-rose-500">*</span>
+                </span>
+                {isMatchedPatient && (
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 animate-bounce">
+                    <Check className="w-2.5 h-2.5" /> Found
+                  </span>
+                )}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., 9876543210"
+                  value={patientContact}
+                  onChange={(e) => setPatientContact(e.target.value)}
+                  className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-patient-contact"
+                />
+              </div>
+            </div>
+
             {/* Patient Name */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
@@ -453,7 +520,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
           {/* Billing and Transaction details Row */}
           {!isMultipleServices ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4" id="row-single-service-billing">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3" id="row-single-service-billing">
                 
                 {/* Appointment Date */}
                 <div>
@@ -468,6 +535,22 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
                     onChange={(e) => handleDateChange(e.target.value)}
                     className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
                     id="inp-service-date"
+                  />
+                </div>
+
+                {/* Date of Payment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-505" />
+                    Date Of Payment <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
+                    id="inp-payment-date"
                   />
                 </div>
 
@@ -574,7 +657,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4" id="row-multiple-services-meta">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4" id="row-multiple-services-meta">
               
               {/* Appointment Date */}
               <div>
@@ -589,6 +672,22 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit }: Inc
                   onChange={(e) => handleDateChange(e.target.value)}
                   className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
                   id="inp-service-date-multi"
+                />
+              </div>
+
+              {/* Date of Payment */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-505" />
+                  Date Of Payment <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-indigo-500 focus:outline-hidden transition-colors cursor-pointer"
+                  id="inp-payment-date-multi"
                 />
               </div>
 

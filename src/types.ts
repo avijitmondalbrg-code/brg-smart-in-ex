@@ -22,7 +22,9 @@ export interface IncomeEntry {
   id: string; // Unique internal tracker ID
   patientName: string;
   patientId: string; // Auto-generated format: PT-YYYYMMDD-XXXX
+  patientContact?: string; // Contact mobile number
   date: string; // Entry Date: YYYY-MM-DD
+  paymentDate?: string; // Date of Payment
   serviceType: string; // e.g. Hearing Evaluation, Speech Therapy, etc.
   amountCollected: number;
   paymentMode: string; // Cash, Card, Mobile Banking, Net Banking, etc.
