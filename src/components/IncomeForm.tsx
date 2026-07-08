@@ -61,6 +61,11 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   const [billNo, setBillNo] = useState("");
   const [isPaymentPending, setIsPaymentPending] = useState(false);
 
+  // GST State Parameters
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstRate, setGstRate] = useState<number>(18);
+  const [gstType, setGstType] = useState<"inclusive" | "exclusive">("inclusive");
+
   // States for multiple services/procedures under one invoice
   const [isMultipleServices, setIsMultipleServices] = useState<boolean>(false);
   const [selectedServicesList, setSelectedServicesList] = useState<SelectedServiceItem[]>([]);
@@ -204,6 +209,11 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setSupportStaffCommission(editingEntry.expenses.supportStaffCommission);
       setOtherExpenses(editingEntry.expenses.otherExpenses);
       
+      // Load GST parameters if present
+      setGstEnabled(!!editingEntry.gstEnabled);
+      setGstRate(editingEntry.gstRate || 18);
+      setGstType(editingEntry.gstType || "inclusive");
+
       // Set preset to Custom since we are editing custom values
       setSelectedPresetIndex(-1);
     } else {
@@ -229,6 +239,11 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setSelectedServicesList([]);
       setItemCustomServiceType("");
       setItemAmount(0);
+      
+      // Reset GST parameters
+      setGstEnabled(false);
+      setGstRate(18);
+      setGstType("inclusive");
       
       regenerateIds(today);
       setSelectedPresetIndex(0); // standard referral
@@ -279,15 +294,19 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     }
   }, [referredDoctor, editingEntry]);
 
-  // Recalculate net amount collected when services list, gross amount, discount or mode changes
+  // Recalculate net amount collected when services list, gross amount, discount, GST parameters or mode changes
   useEffect(() => {
-    if (isMultipleServices) {
-      const total = selectedServicesList.reduce((sum, item) => sum + item.amount, 0);
-      setAmountCollected(Math.max(0, total - discount));
+    const subtotal = isMultipleServices
+      ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
+      : grossAmount;
+    const afterDiscount = Math.max(0, subtotal - discount);
+
+    if (gstEnabled && gstType === "exclusive") {
+      setAmountCollected(Math.round(afterDiscount * (1 + gstRate / 100)));
     } else {
-      setAmountCollected(Math.max(0, grossAmount - discount));
+      setAmountCollected(afterDiscount);
     }
-  }, [selectedServicesList, isMultipleServices, grossAmount, discount]);
+  }, [selectedServicesList, isMultipleServices, grossAmount, discount, gstEnabled, gstRate, gstType]);
 
   // Recalculate expense distributions based on active preset and raw collected amount
   useEffect(() => {
@@ -360,6 +379,22 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       ? selectedServicesList.map(s => s.serviceType).join(" + ")
       : (serviceType === "Other" ? (customServiceType || "Other Service") : serviceType);
 
+    let calculatedGstAmount = 0;
+    if (gstEnabled) {
+      const subtotal = isMultipleServices
+        ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
+        : grossAmount;
+      const afterDiscount = Math.max(0, subtotal - discount);
+
+      if (gstType === "inclusive") {
+        calculatedGstAmount = Math.round(afterDiscount - (afterDiscount / (1 + gstRate / 100)));
+      } else {
+        calculatedGstAmount = Math.round((afterDiscount * gstRate) / 100);
+      }
+    }
+    const cgst = Math.round((calculatedGstAmount / 2) * 100) / 100;
+    const sgst = Math.round((calculatedGstAmount / 2) * 100) / 100;
+
     const entryPayload = {
       patientName: patientName.trim(),
       patientContact: patientContact.trim(),
@@ -375,6 +410,12 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       referredDoctor: referredDoctor.trim(),
       aslpName: aslpName.trim(),
       discount,
+      gstEnabled,
+      gstRate: gstEnabled ? gstRate : undefined,
+      gstType: gstEnabled ? gstType : undefined,
+      gstAmount: gstEnabled ? calculatedGstAmount : undefined,
+      cgstAmount: gstEnabled ? cgst : undefined,
+      sgstAmount: gstEnabled ? sgst : undefined,
       expenses: {
         doctorReferral,
         audiologistCommission,
@@ -1017,6 +1058,135 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
               />
             </div>
           )}
+
+          {/* GST Option Section */}
+          <div className="bg-slate-50/80 rounded-xl border border-slate-200 p-4.5 space-y-3.5" id="gst-taxation-panel">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 font-display uppercase tracking-wider">
+                  <span className="px-1.5 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded font-mono">GST</span>
+                  GST Invoice Billing Options
+                </label>
+                <p className="text-[10px] text-slate-500 font-semibold">Enable tax calculation for GST compliant invoice printing.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={gstEnabled}
+                  onChange={(e) => setGstEnabled(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer accent-emerald-600"
+                  id="chk-gst-enabled"
+                />
+                <span className="ml-2 text-xs font-black text-slate-700">Enable GST</span>
+              </label>
+            </div>
+
+            {gstEnabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-fadeIn">
+                {/* GST Rate Select */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    GST Rate / Slab (%)
+                  </label>
+                  <select
+                    value={gstRate}
+                    onChange={(e) => setGstRate(parseInt(e.target.value, 10))}
+                    className="w-full text-xs font-bold border border-slate-300 rounded-lg py-2 px-3 bg-white focus:border-emerald-500 focus:outline-hidden cursor-pointer"
+                    id="sel-gst-rate"
+                  >
+                    <option value={18}>18% (Standard Diagnostic/Service)</option>
+                    <option value={12}>12% (Medical Devices/Hearing Aids)</option>
+                    <option value={5}>5% (Life Saving Drugs)</option>
+                    <option value={28}>28% (Luxury Items)</option>
+                  </select>
+                </div>
+
+                {/* GST Type Select */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    GST Calculation Type
+                  </label>
+                  <div className="flex bg-white border border-slate-300 p-0.5 rounded-lg gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setGstType("inclusive")}
+                      className={`flex-1 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${gstType === "inclusive" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-800"}`}
+                      id="btn-gst-inclusive"
+                    >
+                      Inclusive (In price)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGstType("exclusive")}
+                      className={`flex-1 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${gstType === "exclusive" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-800"}`}
+                      id="btn-gst-exclusive"
+                    >
+                      Exclusive (Add extra)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live calculation breakdown */}
+                <div className="sm:col-span-2 bg-emerald-50/40 border border-emerald-100 p-3 rounded-lg text-xs space-y-1 mt-1 font-mono">
+                  <div className="flex justify-between text-slate-500 font-semibold">
+                    <span>Taxable Base Value (Subtotal):</span>
+                    <span className="font-bold">
+                      ₹{(() => {
+                        const subtotal = isMultipleServices
+                          ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
+                          : grossAmount;
+                        const afterDiscount = Math.max(0, subtotal - discount);
+                        if (gstType === "inclusive") {
+                          return (afterDiscount / (1 + gstRate / 100)).toFixed(2);
+                        }
+                        return afterDiscount.toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 font-semibold">
+                    <span>CGST ({gstRate / 2}%):</span>
+                    <span className="font-bold">
+                      ₹{(() => {
+                        const subtotal = isMultipleServices
+                          ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
+                          : grossAmount;
+                        const afterDiscount = Math.max(0, subtotal - discount);
+                        let calculatedGst = 0;
+                        if (gstType === "inclusive") {
+                          calculatedGst = afterDiscount - (afterDiscount / (1 + gstRate / 100));
+                        } else {
+                          calculatedGst = (afterDiscount * gstRate) / 100;
+                        }
+                        return (calculatedGst / 2).toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 font-semibold">
+                    <span>SGST ({gstRate / 2}%):</span>
+                    <span className="font-bold">
+                      ₹{(() => {
+                        const subtotal = isMultipleServices
+                          ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
+                          : grossAmount;
+                        const afterDiscount = Math.max(0, subtotal - discount);
+                        let calculatedGst = 0;
+                        if (gstType === "inclusive") {
+                          calculatedGst = afterDiscount - (afterDiscount / (1 + gstRate / 100));
+                        } else {
+                          calculatedGst = (afterDiscount * gstRate) / 100;
+                        }
+                        return (calculatedGst / 2).toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-800 font-black pt-1.5 border-t border-emerald-100 mt-1">
+                    <span>Total Bill Amount Collected:</span>
+                    <span className="text-emerald-700">₹{amountCollected}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Auto generated read-only indicators */}
           <div className="bg-slate-50 rounded-lg border border-slate-200 p-3.5 grid grid-cols-2 gap-4">

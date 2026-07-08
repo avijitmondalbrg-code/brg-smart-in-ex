@@ -37,6 +37,12 @@ export interface IncomeEntry {
   createdTime: string; // Timestamp for search
   selectedServices?: SelectedServiceItem[]; // New field to support multiple services in a single checkout/invoice
   discount?: number; // Discount given
+  gstEnabled?: boolean; // Whether GST is applied
+  gstRate?: number; // GST rate percentage (e.g. 18)
+  gstType?: "inclusive" | "exclusive"; // GST calculation type
+  gstAmount?: number; // Calculated total GST amount
+  cgstAmount?: number; // CGST component
+  sgstAmount?: number; // SGST component
 }
 
 export interface DistributionPreset {

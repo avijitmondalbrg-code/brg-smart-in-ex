@@ -29,14 +29,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ entries, userRole = "admin" }: DashboardProps) {
-  const [startDate, setStartDate] = React.useState<string>("2026-04-01");
-  const [endDate, setEndDate] = React.useState<string>(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
-    return `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
-  });
+  const [startDate, setStartDate] = React.useState<string>("");
+  const [endDate, setEndDate] = React.useState<string>("");
 
   // Section-specific date filters for individual CSV exports and local widgets
   const [streamStartDate, setStreamStartDate] = React.useState<string>("");

@@ -121,7 +121,8 @@ export default function PatientsDatabase({
       const matchSearch = 
         p.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.patientContact.includes(searchTerm) ||
-        p.patientId.toLowerCase().includes(searchTerm.toLowerCase());
+        p.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.visits.some(v => v.billNo.toLowerCase().includes(searchTerm.toLowerCase()));
         
       const matchLoc = selectedLocation === "All" || p.latestLocation === selectedLocation;
       
@@ -296,6 +297,26 @@ export default function PatientsDatabase({
                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span>Clinic: <strong className="text-slate-700">{patient.latestLocation}</strong></span>
                           </span>
+                        </div>
+
+                        {/* Invoice Numbers list */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Invoices:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {patient.visits.map((visit) => (
+                              <span 
+                                key={visit.id} 
+                                className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shadow-2xs hover:bg-indigo-100 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Avoid toggling expansion
+                                  onOpenReceipt(visit);
+                                }}
+                                title="Click to view/print receipt"
+                              >
+                                {visit.billNo}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
