@@ -411,11 +411,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       aslpName: aslpName.trim(),
       discount,
       gstEnabled,
-      gstRate: gstEnabled ? gstRate : undefined,
-      gstType: gstEnabled ? gstType : undefined,
-      gstAmount: gstEnabled ? calculatedGstAmount : undefined,
-      cgstAmount: gstEnabled ? cgst : undefined,
-      sgstAmount: gstEnabled ? sgst : undefined,
+      // Only include GST fields if GST is enabled to prevent undefined field errors in Firestore
+      ...(gstEnabled ? {
+        gstRate,
+        gstType,
+        gstAmount: calculatedGstAmount,
+        cgstAmount: cgst,
+        sgstAmount: sgst
+      } : {}),
       expenses: {
         doctorReferral,
         audiologistCommission,

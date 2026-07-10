@@ -42,7 +42,19 @@ service cloud.firestore {
       && data.billNo is string && data.billNo.size() <= 64
       && data.createdTime is string && data.createdTime.size() <= 64
       && data.expenses is map
-      && (!data.keys().hasAny(['selectedServices']) || data.selectedServices is list);
+      && (!data.keys().hasAny(['selectedServices']) || data.selectedServices is list)
+      && (!data.keys().hasAny(['patientContact']) || (data.patientContact is string && data.patientContact.size() <= 64))
+      && (!data.keys().hasAny(['paymentDate']) || (data.paymentDate is string && data.paymentDate.size() <= 64))
+      && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 2000))
+      && (!data.keys().hasAny(['referredDoctor']) || (data.referredDoctor is string && data.referredDoctor.size() <= 200))
+      && (!data.keys().hasAny(['aslpName']) || (data.aslpName is string && data.aslpName.size() <= 200))
+      && (!data.keys().hasAny(['discount']) || data.discount is number)
+      && (!data.keys().hasAny(['gstEnabled']) || data.gstEnabled is bool)
+      && (!data.keys().hasAny(['gstRate']) || data.gstRate is number)
+      && (!data.keys().hasAny(['gstType']) || (data.gstType is string && data.gstType.size() <= 32))
+      && (!data.keys().hasAny(['gstAmount']) || data.gstAmount is number)
+      && (!data.keys().hasAny(['cgstAmount']) || data.cgstAmount is number)
+      && (!data.keys().hasAny(['sgstAmount']) || data.sgstAmount is number);
     }
 
     match /entries/{entryId} {
