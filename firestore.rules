@@ -54,7 +54,8 @@ service cloud.firestore {
       && (!data.keys().hasAny(['gstType']) || (data.gstType is string && data.gstType.size() <= 32))
       && (!data.keys().hasAny(['gstAmount']) || data.gstAmount is number)
       && (!data.keys().hasAny(['cgstAmount']) || data.cgstAmount is number)
-      && (!data.keys().hasAny(['sgstAmount']) || data.sgstAmount is number);
+      && (!data.keys().hasAny(['sgstAmount']) || data.sgstAmount is number)
+      && (!data.keys().hasAny(['quantity']) || data.quantity is number);
     }
 
     match /entries/{entryId} {

@@ -199,7 +199,14 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                     {entry.selectedServices.map((service, idx) => (
                       <div className="grid grid-cols-12 py-3 px-4 bg-white items-center" key={idx}>
                         <div className="col-span-8">
-                          <p className="font-bold text-slate-800">{service.serviceType}</p>
+                          <p className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                            <span>{service.serviceType}</span>
+                            {service.quantity && service.quantity > 1 && (
+                              <span className="inline-flex px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-mono font-bold select-none">
+                                QTY: {service.quantity}
+                              </span>
+                            )}
+                          </p>
                           <p className="text-[9px] text-slate-400 italic mt-0.5">Clinical Rehabilitation Procedure & Consultation</p>
                         </div>
                         <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[12.5px]">
@@ -211,7 +218,14 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                 ) : (
                   <div className="grid grid-cols-12 py-3.5 px-4 bg-white items-center">
                     <div className="col-span-8">
-                      <p className="font-bold text-slate-800">{entry.serviceType}</p>
+                      <p className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                        <span>{entry.serviceType}</span>
+                        {entry.quantity && entry.quantity > 1 && (
+                          <span className="inline-flex px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-mono font-bold select-none">
+                            QTY: {entry.quantity}
+                          </span>
+                        )}
+                      </p>
                       <p className="text-[10px] text-slate-500 italic mt-0.5">Clinical Rehabilitation, Consultative Assessment, and Diagnostic Operations.</p>
                     </div>
                     <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[13px]">

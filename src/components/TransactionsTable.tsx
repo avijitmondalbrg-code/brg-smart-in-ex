@@ -365,6 +365,7 @@ export default function TransactionsTable({
                 <th className="py-3 px-4 cursor-pointer hover:text-slate-600 transition-colors" onClick={() => handleSort("patientName")}>
                   Patient Info <ArrowUpDown className="w-3 h-3 inline-block ml-1" />
                 </th>
+                <th className="py-3 px-4">Bill No</th>
                 <th className="py-3 px-4 cursor-pointer hover:text-slate-600 transition-colors" onClick={() => handleSort("date")}>
                   Service Date <ArrowUpDown className="w-3 h-3 inline-block ml-1" />
                 </th>
@@ -413,6 +414,13 @@ export default function TransactionsTable({
                             <p className="text-[10.5px] text-teal-600 font-medium">Dr: {e.referredDoctor}</p>
                           )}
                         </div>
+                      </td>
+
+                      {/* Bill No */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center bg-teal-50 text-teal-800 px-2 py-1 rounded font-bold font-mono text-[11px] border border-teal-105 shadow-2xs select-all">
+                          {e.billNo}
+                        </span>
                       </td>
 
                       {/* Date */}

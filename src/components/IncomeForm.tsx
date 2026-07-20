@@ -69,6 +69,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   // States for multiple services/procedures under one invoice
   const [isMultipleServices, setIsMultipleServices] = useState<boolean>(false);
   const [selectedServicesList, setSelectedServicesList] = useState<SelectedServiceItem[]>([]);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [itemQuantity, setItemQuantity] = useState<number>(1);
   
   // Builder state for adding a service item
   const [itemServiceType, setItemServiceType] = useState<string>(SERVICE_TYPES[0]);
@@ -184,9 +186,11 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
         setCustomServiceType("");
       }
       
+      const qty = editingEntry.quantity || 1;
+      setQuantity(qty);
       const disc = editingEntry.discount || 0;
       setDiscount(disc);
-      setGrossAmount(editingEntry.amountCollected + disc);
+      setGrossAmount((editingEntry.amountCollected + disc) / qty);
       setAmountCollected(editingEntry.amountCollected);
       setPaymentMode(editingEntry.paymentMode);
       setNotes(editingEntry.notes);
@@ -232,6 +236,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setDiscount(0);
       setGrossAmount(1500);
       setAmountCollected(1500); // realistic default treatment charge
+      setQuantity(1);
+      setItemQuantity(1);
       setPaymentMode(PAYMENT_MODES[0]);
       setNotes("");
       setClinicLocation(CLINIC_LOCATIONS[0]);
@@ -298,7 +304,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   useEffect(() => {
     const subtotal = isMultipleServices
       ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
-      : grossAmount;
+      : grossAmount * quantity;
     const afterDiscount = Math.max(0, subtotal - discount);
 
     if (gstEnabled && gstType === "exclusive") {
@@ -306,7 +312,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     } else {
       setAmountCollected(afterDiscount);
     }
-  }, [selectedServicesList, isMultipleServices, grossAmount, discount, gstEnabled, gstRate, gstType]);
+  }, [selectedServicesList, isMultipleServices, grossAmount, quantity, discount, gstEnabled, gstRate, gstType]);
 
   // Recalculate expense distributions based on active preset and raw collected amount
   useEffect(() => {
@@ -383,7 +389,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     if (gstEnabled) {
       const subtotal = isMultipleServices
         ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
-        : grossAmount;
+        : grossAmount * quantity;
       const afterDiscount = Math.max(0, subtotal - discount);
 
       if (gstType === "inclusive") {
@@ -411,6 +417,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       aslpName: aslpName.trim(),
       discount,
       gstEnabled,
+      ...(isMultipleServices ? {} : { quantity }),
       // Only include GST fields if GST is enabled to prevent undefined field errors in Firestore
       ...(gstEnabled ? {
         gstRate,
@@ -631,7 +638,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
           {/* Billing and Transaction details Row */}
           {!isMultipleServices ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3" id="row-single-service-billing">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3" id="row-single-service-billing">
                 
                 {/* Appointment Date */}
                 <div>
@@ -727,6 +734,28 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                       id="inp-gross-amount"
                     />
                   </div>
+                </div>
+
+                {/* Quantity Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    Quantity (QTY) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="1000"
+                    placeholder="1"
+                    value={quantity || 1}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setQuantity(isNaN(val) ? 1 : val);
+                    }}
+                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                    id="inp-single-quantity"
+                  />
                 </div>
 
                 {/* Discount Input */}
@@ -931,7 +960,14 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                       {selectedServicesList.map((item, idx) => (
                         <div key={idx} className="grid grid-cols-12 py-2.5 px-3 items-center hover:bg-slate-50/50">
                           <div className="col-span-1 font-mono font-bold text-slate-400">{idx + 1}</div>
-                          <div className="col-span-7 font-bold text-slate-800">{item.serviceType}</div>
+                          <div className="col-span-7 font-bold text-slate-800">
+                            {item.serviceType}
+                            {item.quantity && item.quantity > 1 && (
+                              <span className="ml-2 px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-mono font-bold select-none">
+                                QTY: {item.quantity}
+                              </span>
+                            )}
+                          </div>
                           <div className="col-span-3 text-right font-mono font-black text-slate-700">₹{item.amount}</div>
                           <div className="col-span-1 text-center">
                             <button
@@ -961,7 +997,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
 
               {/* Service item builder controls */}
               <div className="p-3.5 bg-white rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                <div className="md:col-span-5">
+                <div className={itemServiceType === "Other" ? "md:col-span-3" : "md:col-span-5"}>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Select Medical Service/Test
                   </label>
@@ -996,9 +1032,9 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                   </div>
                 )}
 
-                <div className={`${itemServiceType === "Other" ? "md:col-span-2" : "md:col-span-5"}`}>
+                <div className={itemServiceType === "Other" ? "md:col-span-2" : "md:col-span-3"}>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Amount (INR)
+                    Amount / Rate (INR)
                   </label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₹</span>
@@ -1017,6 +1053,26 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                   </div>
                 </div>
 
+                {/* Itemized Quantity Input */}
+                <div className={itemServiceType === "Other" ? "md:col-span-2" : "md:col-span-2"}>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    QTY
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    placeholder="1"
+                    value={itemQuantity || 1}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setItemQuantity(isNaN(val) ? 1 : val);
+                    }}
+                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2 px-2.5 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                    id="inp-builder-quantity"
+                  />
+                </div>
+
                 <div className="md:col-span-2">
                   <button
                     type="button"
@@ -1031,9 +1087,15 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                         return;
                       }
                       
-                      setSelectedServicesList([...selectedServicesList, { serviceType: computedName, amount: itemAmount }]);
+                      const qtyToAdd = itemQuantity || 1;
+                      setSelectedServicesList([...selectedServicesList, { 
+                        serviceType: computedName, 
+                        amount: itemAmount * qtyToAdd,
+                        quantity: qtyToAdd
+                      }]);
                       setItemCustomServiceType("");
                       setItemAmount(0);
+                      setItemQuantity(1);
                     }}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold font-mono text-xs py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[38px]"
                     id="btn-add-builder-item"
@@ -1137,7 +1199,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                       ₹{(() => {
                         const subtotal = isMultipleServices
                           ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
-                          : grossAmount;
+                          : grossAmount * quantity;
                         const afterDiscount = Math.max(0, subtotal - discount);
                         if (gstType === "inclusive") {
                           return (afterDiscount / (1 + gstRate / 100)).toFixed(2);
@@ -1152,7 +1214,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                       ₹{(() => {
                         const subtotal = isMultipleServices
                           ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
-                          : grossAmount;
+                          : grossAmount * quantity;
                         const afterDiscount = Math.max(0, subtotal - discount);
                         let calculatedGst = 0;
                         if (gstType === "inclusive") {
@@ -1170,7 +1232,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                       ₹{(() => {
                         const subtotal = isMultipleServices
                           ? selectedServicesList.reduce((sum, item) => sum + item.amount, 0)
-                          : grossAmount;
+                          : grossAmount * quantity;
                         const afterDiscount = Math.max(0, subtotal - discount);
                         let calculatedGst = 0;
                         if (gstType === "inclusive") {

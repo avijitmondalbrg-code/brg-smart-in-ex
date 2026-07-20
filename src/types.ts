@@ -16,6 +16,7 @@ export interface ExpenseDistribution {
 export interface SelectedServiceItem {
   serviceType: string;
   amount: number;
+  quantity?: number; // Quantity option (QTY)
 }
 
 export interface IncomeEntry {
@@ -43,6 +44,7 @@ export interface IncomeEntry {
   gstAmount?: number; // Calculated total GST amount
   cgstAmount?: number; // CGST component
   sgstAmount?: number; // SGST component
+  quantity?: number; // Quantity option (QTY) for single service
 }
 
 export interface DistributionPreset {
