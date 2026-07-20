@@ -24,6 +24,7 @@ export interface IncomeEntry {
   patientName: string;
   patientId: string; // Auto-generated format: PT-YYYYMMDD-XXXX
   patientContact?: string; // Contact mobile number
+  patientAddress?: string; // Patient address
   date: string; // Entry Date: YYYY-MM-DD
   paymentDate?: string; // Date of Payment
   serviceType: string; // e.g. Hearing Evaluation, Speech Therapy, etc.
@@ -71,21 +72,36 @@ export const CLINIC_LOCATIONS = [
 
 export const SERVICE_TYPES = [
   "Speech Therapy Session",
-  "Audiometry",
+  "Voice Therapy",
+  "Language Therapy",
+  "Swallow Therapy",
+  "Pure Tone Audiometry",
   "Tympanometry",
-  "Audio+Tymp",
-  "Hearing Aid Trial & Fitting",
+  "Hearing Aid Trial",
   "Hearing Aid Reprogramming",
   "Hearing Aid Repair",
   "Cochlear Implant Rehabilitation",
   "Swallow Therapy",
   "Special Audiological Test",
-  "Hearing Aid Battery",
+  "SISI",
+  "TDT",
+  "TRT",
+  "BERA",
+  "ASSR",
+  "VEMP",
+  "ECochG",
+  "Battery 13",
+  "Battery 675",
+  "Battery 312",
+  "Battery 10",
   "Custom Ear Mold Fabrication",
   "ENG",
   "OAE",
   "Vertigo Test",
-  "Vestibular Test"
+  "Vestibular Test",
+  "Vital Stim Therapy",
+  "Vital Stim Electrod",
+  "Vestibular Exercise"
 ];
 
 export const PAYMENT_MODES = [

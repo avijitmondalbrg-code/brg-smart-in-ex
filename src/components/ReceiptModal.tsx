@@ -135,6 +135,13 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                     <span className="text-indigo-805 font-bold font-mono">{entry.patientContact}</span>
                   </div>
                 )}
+                {entry.patientAddress && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-slate-400 shrink-0">🏠</span>
+                    <span className="text-slate-500">Address:</span>
+                    <span className="text-slate-800 font-medium break-words leading-relaxed max-w-[220px]">{entry.patientAddress}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-slate-500">Patient ID:</span>

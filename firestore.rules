@@ -44,6 +44,7 @@ service cloud.firestore {
       && data.expenses is map
       && (!data.keys().hasAny(['selectedServices']) || data.selectedServices is list)
       && (!data.keys().hasAny(['patientContact']) || (data.patientContact is string && data.patientContact.size() <= 64))
+      && (!data.keys().hasAny(['patientAddress']) || (data.patientAddress is string && data.patientAddress.size() <= 1000))
       && (!data.keys().hasAny(['paymentDate']) || (data.paymentDate is string && data.paymentDate.size() <= 64))
       && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 2000))
       && (!data.keys().hasAny(['referredDoctor']) || (data.referredDoctor is string && data.referredDoctor.size() <= 200))

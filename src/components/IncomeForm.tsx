@@ -31,7 +31,8 @@ import {
   RefreshCw,
   AlertTriangle,
   Phone,
-  Check
+  Check,
+  Home
 } from "lucide-react";
 
 interface IncomeFormProps {
@@ -45,6 +46,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   // Form core states
   const [patientName, setPatientName] = useState("");
   const [patientContact, setPatientContact] = useState("");
+  const [patientAddress, setPatientAddress] = useState("");
   const [patientId, setPatientId] = useState("");
   const [referredDoctor, setReferredDoctor] = useState("");
   const [aslpName, setAslpName] = useState("");
@@ -164,6 +166,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     if (editingEntry) {
       setPatientName(editingEntry.patientName);
       setPatientContact(editingEntry.patientContact || "");
+      setPatientAddress(editingEntry.patientAddress || "");
       setPatientId(editingEntry.patientId);
       setDate(editingEntry.date);
       if (editingEntry.paymentDate === "Pending" || !editingEntry.paymentDate) {
@@ -224,6 +227,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       // Clear forms
       setPatientName("");
       setPatientContact("");
+      setPatientAddress("");
       setReferredDoctor("");
       setAslpName("");
       setIsMatchedPatient(false);
@@ -268,6 +272,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       if (match) {
         setPatientName(match.patientName);
         setPatientId(match.patientId);
+        if (match.patientAddress) setPatientAddress(match.patientAddress);
         if (match.referredDoctor) setReferredDoctor(match.referredDoctor);
         if (match.aslpName) setAslpName(match.aslpName);
         if (match.clinicLocation) setClinicLocation(match.clinicLocation);
@@ -404,6 +409,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     const entryPayload = {
       patientName: patientName.trim(),
       patientContact: patientContact.trim(),
+      patientAddress: patientAddress.trim(),
       patientId,
       date,
       paymentDate: isPaymentPending ? "Pending" : paymentDate,
@@ -450,6 +456,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       // Clear patient specifics for swift next entries
       setPatientName("");
       setPatientContact("");
+      setPatientAddress("");
       setReferredDoctor("");
       setAslpName("");
       setIsMatchedPatient(false);
@@ -487,8 +494,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
         {/* Inputs */}
         <div className="p-5 space-y-4">
           
-          {/* Patient Details Row (Symmetrical 5 columns on desktop) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Patient Details Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Patient Mobile No. */}
             <div>
@@ -553,6 +560,29 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                   </option>
                 ))}
               </select>
+            </div>
+
+          </div>
+
+          {/* Patient Details Row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+
+            {/* Patient Address */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <Home className="w-3.5 h-3.5 text-slate-400" />
+                Patient Address
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g., 12/A, Gariahat Road, Kolkata"
+                  value={patientAddress}
+                  onChange={(e) => setPatientAddress(e.target.value)}
+                  className="w-full text-xs font-medium border border-slate-300 rounded-lg py-2.5 px-3 focus:border-emerald-500 focus:outline-hidden transition-colors"
+                  id="inp-patient-address"
+                />
+              </div>
             </div>
 
             {/* Referral Doctor */}

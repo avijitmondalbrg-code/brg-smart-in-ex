@@ -53,6 +53,7 @@ export default function PatientsDatabase({
       patientContact: string;
       patientName: string;
       patientId: string;
+      patientAddress: string;
       latestVisitDate: string;
       latestLocation: string;
       latestDoctor: string;
@@ -72,6 +73,7 @@ export default function PatientsDatabase({
           patientContact: contactKey,
           patientName: entry.patientName,
           patientId: entry.patientId,
+          patientAddress: entry.patientAddress || "",
           latestVisitDate: entry.date,
           latestLocation: entry.clinicLocation,
           latestDoctor: entry.referredDoctor || "Self / Direct Walk-In",
@@ -93,8 +95,11 @@ export default function PatientsDatabase({
         p.patientName = entry.patientName;
         p.patientId = entry.patientId;
         p.latestLocation = entry.clinicLocation;
+        if (entry.patientAddress) p.patientAddress = entry.patientAddress;
         if (entry.referredDoctor) p.latestDoctor = entry.referredDoctor;
         if (entry.aslpName) p.latestAslp = entry.aslpName;
+      } else if (!p.patientAddress && entry.patientAddress) {
+        p.patientAddress = entry.patientAddress;
       }
     });
 
@@ -299,6 +304,13 @@ export default function PatientsDatabase({
                           </span>
                         </div>
 
+                        {patient.patientAddress && (
+                          <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                            <span>🏠</span>
+                            <span>Address: <strong className="text-slate-700 font-medium">{patient.patientAddress}</strong></span>
+                          </div>
+                        )}
+
                         {/* Invoice Numbers list */}
                         <div className="flex flex-wrap items-center gap-1.5 pt-1">
                           <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Invoices:</span>
@@ -366,11 +378,17 @@ export default function PatientsDatabase({
                     <div className="px-4 pb-5 sm:px-6 animate-fadeIn">
                       <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
                         
-                        <div className="bg-indigo-50/40 px-4 py-2.5 border-b border-slate-200/80 flex items-center justify-between">
+                        <div className="bg-indigo-50/40 px-4 py-2.5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-950 flex items-center gap-1.5 font-display">
                             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                             Clinical Visit & Billing History Logs
                           </span>
+                          {patient.patientAddress && (
+                            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                              <span>🏠 Address:</span>
+                              <span className="text-slate-800 font-medium">{patient.patientAddress}</span>
+                            </span>
+                          )}
                           <span className="text-[10px] text-slate-500 font-semibold font-mono">
                             Latest Consultation: {patient.latestVisitDate}
                           </span>
