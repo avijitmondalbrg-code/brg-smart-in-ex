@@ -309,7 +309,7 @@ export default function TransactionsTable({
               id="filter-service"
             >
               <option value="All">All Service Categories</option>
-              {SERVICE_TYPES.map((type) => (
+              {Array.from(new Set(SERVICE_TYPES)).map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>

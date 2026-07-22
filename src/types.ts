@@ -81,7 +81,6 @@ export const SERVICE_TYPES = [
   "Hearing Aid Reprogramming",
   "Hearing Aid Repair",
   "Cochlear Implant Rehabilitation",
-  "Swallow Therapy",
   "Special Audiological Test",
   "SISI",
   "TDT",

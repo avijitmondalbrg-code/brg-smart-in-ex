@@ -119,7 +119,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   };
 
   // Trigger id generation based on date and dynamic entries sequences
-  const regenerateIds = (chosenDate: string) => {
+  const regenerateIds = (chosenDate: string, currentEntries?: IncomeEntry[]) => {
+    const listToSearch = currentEntries || entries || [];
     const fyStr = getFinancialYearSegment(chosenDate);
     
     const ptPrefix = `BR-PT-${fyStr}-`;
@@ -129,21 +130,35 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     let maxBlSeq = 0;
 
     // Search existing entries to find the maximum serial sequence number
-    if (entries && Array.isArray(entries)) {
-      entries.forEach(entry => {
-        if (entry.patientId && entry.patientId.startsWith(ptPrefix)) {
-          const suffix = entry.patientId.substring(ptPrefix.length);
-          const seqVal = parseInt(suffix, 10);
-          if (!isNaN(seqVal) && seqVal > maxPtSeq) {
-            maxPtSeq = seqVal;
+    if (Array.isArray(listToSearch)) {
+      listToSearch.forEach(entry => {
+        // Patient ID sequence matching
+        if (entry.patientId) {
+          if (entry.patientId.startsWith(ptPrefix)) {
+            const suffix = entry.patientId.substring(ptPrefix.length);
+            const seqVal = parseInt(suffix, 10);
+            if (!isNaN(seqVal) && seqVal > maxPtSeq) maxPtSeq = seqVal;
+          } else {
+            const ptMatch = entry.patientId.match(/PT-.*-(\d+)$/i) || entry.patientId.match(/(\d+)$/);
+            if (ptMatch) {
+              const seqVal = parseInt(ptMatch[1], 10);
+              if (!isNaN(seqVal) && seqVal < 100000 && seqVal > maxPtSeq) maxPtSeq = seqVal;
+            }
           }
         }
         
-        if (entry.billNo && entry.billNo.startsWith(blPrefix)) {
-          const suffix = entry.billNo.substring(blPrefix.length);
-          const seqVal = parseInt(suffix, 10);
-          if (!isNaN(seqVal) && seqVal > maxBlSeq) {
-            maxBlSeq = seqVal;
+        // Bill No sequence matching
+        if (entry.billNo) {
+          if (entry.billNo.startsWith(blPrefix)) {
+            const suffix = entry.billNo.substring(blPrefix.length);
+            const seqVal = parseInt(suffix, 10);
+            if (!isNaN(seqVal) && seqVal > maxBlSeq) maxBlSeq = seqVal;
+          } else {
+            const blMatch = entry.billNo.match(/BL-.*-(\d+)$/i) || entry.billNo.match(/BILL-.*-(\d+)$/i) || entry.billNo.match(/(\d+)$/);
+            if (blMatch) {
+              const seqVal = parseInt(blMatch[1], 10);
+              if (!isNaN(seqVal) && seqVal < 100000 && seqVal > maxBlSeq) maxBlSeq = seqVal;
+            }
           }
         }
       });
@@ -155,11 +170,22 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     const nextPtId = `${ptPrefix}${String(nextPtSeq).padStart(4, "0")}`;
     const nextBlNo = `${blPrefix}${String(nextBlSeq).padStart(4, "0")}`;
 
-    setPatientId(nextPtId);
+    if (!isMatchedPatient) {
+      setPatientId(nextPtId);
+    }
     setBillNo(nextBlNo);
+
+    return { nextPtId, nextBlNo };
   };
 
   const [isMatchedPatient, setIsMatchedPatient] = useState(false);
+
+  // Synchronize bill number and patient ID when entries array or date changes
+  useEffect(() => {
+    if (!editingEntry) {
+      regenerateIds(date);
+    }
+  }, [entries, date, editingEntry]);
 
   // Setup form values for new or edited items
   useEffect(() => {
@@ -406,11 +432,21 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
     const cgst = Math.round((calculatedGstAmount / 2) * 100) / 100;
     const sgst = Math.round((calculatedGstAmount / 2) * 100) / 100;
 
+    // Ensure fresh bill number and patient ID when creating a new record
+    let finalBillNo = billNo;
+    let finalPatientId = patientId;
+
+    if (!editingEntry) {
+      const fresh = regenerateIds(date);
+      if (fresh.nextBlNo) finalBillNo = fresh.nextBlNo;
+      if (!isMatchedPatient && fresh.nextPtId) finalPatientId = fresh.nextPtId;
+    }
+
     const entryPayload = {
       patientName: patientName.trim(),
       patientContact: patientContact.trim(),
       patientAddress: patientAddress.trim(),
-      patientId,
+      patientId: finalPatientId,
       date,
       paymentDate: isPaymentPending ? "Pending" : paymentDate,
       serviceType: finalServiceType,
@@ -418,7 +454,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       paymentMode,
       notes: notes.trim(),
       clinicLocation,
-      billNo,
+      billNo: finalBillNo,
       referredDoctor: referredDoctor.trim(),
       aslpName: aslpName.trim(),
       discount,
@@ -460,8 +496,11 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setReferredDoctor("");
       setAslpName("");
       setIsMatchedPatient(false);
-      regenerateIds(date);
       setNotes("");
+
+      // Calculate next sequence immediately incorporating the newly submitted entry
+      const tempEntry = { ...entryPayload, id: "temp-" + Date.now(), createdTime: new Date().toISOString() };
+      regenerateIds(date, [...entries, tempEntry]);
     }
   };
 
@@ -732,7 +771,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                     className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2.5 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
                     id="sel-service-type"
                   >
-                    {SERVICE_TYPES.map((type) => (
+                    {Array.from(new Set(SERVICE_TYPES)).map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
@@ -1037,7 +1076,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                     className="w-full text-xs font-semibold border border-slate-300 rounded-lg py-2 px-2.5 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors cursor-pointer"
                     id="sel-builder-service-type"
                   >
-                    {SERVICE_TYPES.map((type) => (
+                    {Array.from(new Set(SERVICE_TYPES)).map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
