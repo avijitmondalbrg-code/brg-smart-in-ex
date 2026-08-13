@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from "react";
 import { IncomeEntry, ExpenseDistribution } from "./types";
 import { DEMO_ENTRIES } from "./demo_data";
+import Sidebar, { NavTab } from "./components/Sidebar";
+import SettingsView from "./components/SettingsView";
 import Header from "./components/Header";
 import Dashboard from "./components/Dashboard";
 import IncomeForm from "./components/IncomeForm";
@@ -68,8 +70,11 @@ export default function App() {
   // Primary state holding all financial collections
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   
-  // Tab states: "dashboard" or "ledger" or "expenses" or "patients"
-  const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "expenses" | "patients">("dashboard");
+  // Tab states: "dashboard" | "ledger" | "expenses" | "patients" | "settings"
+  const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
+
+  // Mobile sidebar drawer state
+  const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
 
   // Edit statement helper state
   const [editingEntry, setEditingEntry] = useState<IncomeEntry | null>(null);
@@ -377,206 +382,172 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 flex">
       
-      {/* Dynamic Header */}
-      <Header 
-        onLoadDemo={handleLoadDemo}
-        onClearAll={handleClearAll}
-        onExportJSON={handleExportJSON}
-        onImportJSON={handleImportJSON}
+      {/* Left Navigation Sidebar */}
+      <Sidebar 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         totalEntriesCount={entries.length}
-        onLogout={handleLogout}
         userRole={userRole}
+        isMobileOpen={isMobileOpen}
+        setIsMobileOpen={setIsMobileOpen}
+        onLogout={handleLogout}
       />
 
-      {/* Main Container */}
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-6 ${receiptEntry ? "no-print" : ""}`}>
+      {/* Main Layout Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         
-        {/* Toast Notifications Banner */}
-        {notification && (
-          <div className="no-print fixed top-20 right-4 z-50 animate-bounce duration-500 max-w-sm">
-            <div className={`p-4 rounded-xl border shadow-lg flex items-start gap-2.5 ${
-              notification.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
-              notification.type === "danger" ? "bg-rose-50 border-rose-200 text-rose-800" :
-              "bg-slate-900 border-slate-850 text-white"
-            }`}>
-              <AlertCircle className={`w-4.5 h-4.5 shrink-0 ${
-                notification.type === "success" ? "text-emerald-600" :
-                notification.type === "danger" ? "text-rose-600" :
-                "text-slate-400"
-              }`} />
-              <div className="text-xs font-semibold">
-                {notification.message}
+        {/* Dynamic Top Header */}
+        <Header 
+          onToggleSidebar={() => setIsMobileOpen(!isMobileOpen)}
+          totalEntriesCount={entries.length}
+          userRole={userRole}
+          onLogout={handleLogout}
+        />
+
+        {/* Main Content View */}
+        <main className={`p-4 sm:p-6 lg:p-8 flex-grow w-full space-y-6 ${receiptEntry ? "no-print" : ""}`}>
+          
+          {/* Toast Notifications Banner */}
+          {notification && (
+            <div className="no-print fixed top-20 right-4 z-50 animate-bounce duration-500 max-w-sm">
+              <div className={`p-4 rounded-xl border shadow-lg flex items-start gap-2.5 ${
+                notification.type === "success" ? "bg-blue-50 border-blue-200 text-blue-900" :
+                notification.type === "danger" ? "bg-rose-50 border-rose-200 text-rose-900" :
+                "bg-slate-900 border-slate-800 text-white"
+              }`}>
+                <AlertCircle className={`w-4.5 h-4.5 shrink-0 ${
+                  notification.type === "success" ? "text-blue-600" :
+                  notification.type === "danger" ? "text-rose-600" :
+                  "text-slate-400"
+                }`} />
+                <div className="text-xs font-semibold">
+                  {notification.message}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* TAB CONTROLLERS */}
-        <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-4">
-          
-          {/* Quick tab controls */}
-          <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-xl border border-slate-200/60 self-start gap-1">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-1.5 px-4.5 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                activeTab === "dashboard"
-                  ? "bg-white text-slate-800 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              id="tab-analytics"
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-600" />
-              <span>Diagnostic Analytics Dashboard</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("expenses")}
-              className={`flex items-center gap-1.5 px-4.5 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                activeTab === "expenses"
-                  ? "bg-white text-slate-800 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              id="tab-expenses"
-            >
-              <TrendingDown className="w-4 h-4 text-rose-500" />
-              <span>Outflow Expenses Mgt</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("patients")}
-              className={`flex items-center gap-1.5 px-4.5 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                activeTab === "patients"
-                  ? "bg-white text-slate-800 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              id="tab-patients-directory"
-            >
-              <Users className="w-4 h-4 text-indigo-600" />
-              <span>Registered Patient Database</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("ledger");
-                setEditingEntry(null); // Cancel active edits if they switch fresh
-              }}
-              className={`flex items-center gap-1.5 px-4.5 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                activeTab === "ledger"
-                  ? "bg-white text-slate-800 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-              id="tab-ledger-entry"
-            >
-              <ClipboardList className="w-4 h-4 text-teal-600" />
-              <span>Direct Entry Form & Patient Ledger</span>
-            </button>
-          </div>
-
-          {/* Prompt banner to guide users if they have empty storage */}
-          {entries.length === 0 && (
-            <div className="text-xs bg-amber-50 border border-amber-100 p-2.5 rounded-lg flex items-center gap-2 text-amber-800 font-semibold max-w-sm sm:max-w-xs animate-pulse">
-              <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
-              {userRole === "admin" ? (
-                <span>Empty Ledger detected! Click <strong>Load Demo Data</strong> above to test diagnostic trends instantly.</span>
-              ) : (
-                <span>Empty Ledger detected! Please report to your system administrator or input fresh recordings.</span>
-              )}
-            </div>
           )}
 
-  {entries.length > 0 && (
-            <div className="hidden md:flex items-center gap-2.5 text-xs text-slate-600 font-mono font-bold bg-white shadow-xs border border-slate-250 py-1.5 px-3 rounded-lg">
-              <span className="relative flex shrink-0 h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <Database className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-              <span>Central Cloud Synchronized ({entries.length} clinic cases)</span>
-            </div>
-          )}
-
-        </div>
-
-        {/* DYNAMIC TAB CONTROLLER RENDERING */}
-        {activeTab === "dashboard" ? (
-          
-          /* VIEW 1: DIAGNOSTIC ANALYTICS DASHBOARD */
-          <div className="animate-fadeIn">
-            <Dashboard entries={entries} userRole={userRole} />
-          </div>
-
-        ) : activeTab === "expenses" ? (
-          
-          /* VIEW 3: DISBURSEMENT & EXPENSE HEADS */
-          <div className="animate-fadeIn">
-            <ExpensesDashboard entries={entries} />
-          </div>
-
-        ) : activeTab === "patients" ? (
-
-          /* VIEW 4: REGISTERED PATIENT DATABASE DASHBOARD DIRECTORY */
-          <div className="animate-fadeIn">
-            <PatientsDatabase 
-              entries={entries}
-              onEdit={(entry) => {
-                setEditingEntry(entry);
-                setActiveTab("ledger");
-              }}
-              onDelete={handleDeleteTrigger}
-              onOpenReceipt={(entry) => setReceiptEntry(entry)}
-              onDeleteCompletePatientRecords={handleDeleteCompletePatientRecords}
-              userRole={userRole}
-            />
-          </div>
-
-        ) : (
-          
-          /* VIEW 2: DIRECT ENTRY FORM & RECORDINGS LEDGER */
-          <div className="space-y-8 animate-fadeIn">
+          {/* DYNAMIC TAB CONTROLLER RENDERING */}
+          {activeTab === "dashboard" ? (
             
-            {/* Split layout: Form entry structure */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1">
-                <BriefcaseMedical className="w-4 h-4 text-emerald-600" />
-                <h2 className="text-base font-bold text-slate-800 font-display">
-                  {editingEntry ? "Modify Clinical Receipt" : "Create New Financial Entry Slip"}
-                </h2>
-              </div>
-              <p className="text-xs text-slate-500">
-                Register daily therapeutic intakes with auto-generated billing credentials and custom commissions distribution setup.
-              </p>
+            /* VIEW 1: DIAGNOSTIC ANALYTICS DASHBOARD */
+            <div className="animate-fadeIn">
+              <Dashboard entries={entries} userRole={userRole} />
             </div>
 
-            <IncomeForm 
-              onSubmit={handleSubmitEntry}
-              editingEntry={editingEntry}
-              onCancelEdit={() => setEditingEntry(null)}
-              entries={entries}
-            />
+          ) : activeTab === "expenses" ? (
+            
+            /* VIEW 3: DISBURSEMENT & EXPENSE HEADS */
+            <div className="animate-fadeIn">
+              <ExpensesDashboard entries={entries} />
+            </div>
 
-            {/* Structured Transactions ledger */}
-            <div className="space-y-4 pt-4 border-t border-slate-205">
-              <div className="space-y-1">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-display">
-                  Registered Patient Database Logs
-                </h2>
-                <p className="text-xs text-slate-500">Inspect historical statements, review internal service charges, or print formal invoices.</p>
-              </div>
+          ) : activeTab === "patients" ? (
 
-              <TransactionsTable 
+            /* VIEW 4: REGISTERED PATIENT DATABASE DASHBOARD DIRECTORY */
+            <div className="animate-fadeIn">
+              <PatientsDatabase 
                 entries={entries}
-                onEdit={handleEditTrigger}
+                onEdit={(entry) => {
+                  setEditingEntry(entry);
+                  setActiveTab("ledger");
+                }}
                 onDelete={handleDeleteTrigger}
                 onOpenReceipt={(entry) => setReceiptEntry(entry)}
-                onUpdateExpenses={handleUpdateExpenses}
+                onDeleteCompletePatientRecords={handleDeleteCompletePatientRecords}
                 userRole={userRole}
               />
             </div>
 
+          ) : activeTab === "settings" ? (
+
+            /* VIEW 5: DATABASE & SYSTEM SETTINGS */
+            <div className="animate-fadeIn">
+              <SettingsView 
+                onLoadDemo={handleLoadDemo}
+                onClearAll={handleClearAll}
+                onExportJSON={handleExportJSON}
+                onImportJSON={handleImportJSON}
+                totalEntriesCount={entries.length}
+                isFirebaseConnected={isFirebaseConnected}
+                isFirebaseSyncing={isFirebaseSyncing}
+                userRole={userRole}
+                onLogout={handleLogout}
+              />
+            </div>
+
+          ) : (
+            
+            /* VIEW 2: DIRECT ENTRY FORM & RECORDINGS LEDGER */
+            <div className="space-y-8 animate-fadeIn">
+              
+              {/* Split layout: Form entry structure */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <BriefcaseMedical className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-bold text-slate-800 font-display">
+                    {editingEntry ? "Modify Clinical Receipt" : "Create New Financial Entry Slip"}
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Register daily therapeutic intakes with auto-generated billing credentials and custom commissions distribution setup.
+                </p>
+              </div>
+
+              <IncomeForm 
+                onSubmit={handleSubmitEntry}
+                editingEntry={editingEntry}
+                onCancelEdit={() => setEditingEntry(null)}
+                entries={entries}
+              />
+
+              {/* Structured Transactions ledger */}
+              <div className="space-y-4 pt-4 border-t border-slate-200">
+                <div className="space-y-1">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-display">
+                    Registered Patient Database Logs
+                  </h2>
+                  <p className="text-xs text-slate-500">Inspect historical statements, review internal service charges, or print formal invoices.</p>
+                </div>
+
+                <TransactionsTable 
+                  entries={entries}
+                  onEdit={handleEditTrigger}
+                  onDelete={handleDeleteTrigger}
+                  onOpenReceipt={(entry) => setReceiptEntry(entry)}
+                  onUpdateExpenses={handleUpdateExpenses}
+                  userRole={userRole}
+                />
+              </div>
+
+            </div>
+
+          )}
+
+        </main>
+
+        {/* Footer */}
+        <footer className="no-print bg-white border-t border-slate-200 py-4 mt-auto text-xs text-slate-400 font-semibold font-mono">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <img 
+                src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                alt="BRG Logo" 
+                className="h-5 w-auto grayscale opacity-60"
+                referrerPolicy="no-referrer"
+              />
+              <span className="font-sans">© 2026 Bengal Rehabilitation Group. All rights reserved.</span>
+            </div>
+            <div className="flex items-center gap-4 text-[11px]">
+              <span>Central Sync Active</span>
+              <span>v2.0 Blue Edition</span>
+            </div>
           </div>
+        </footer>
 
-        )}
-
-      </main>
+      </div>
 
       {/* INVOICE RECEIPTS PRINT DIALOG MODAL */}
       {receiptEntry && (
@@ -585,25 +556,6 @@ export default function App() {
           onClose={() => setReceiptEntry(null)}
         />
       )}
-
-      {/* Deep Footer with corporate credit and status parameters */}
-      <footer className="no-print bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400 font-semibold font-mono">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <img 
-              src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
-              alt="BRG Logo" 
-              className="h-5 w-auto grayscale opacity-60"
-              referrerPolicy="no-referrer"
-            />
-            <span className="font-sans">© 2026 Bengal Rehabilitation Group. All rights reserved.</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>Secured locally</span>
-            <span>Version 2.0 (Stable)</span>
-          </div>
-        </div>
-      </footer>
 
     </div>
   );

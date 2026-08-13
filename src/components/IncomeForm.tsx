@@ -1364,7 +1364,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
         <div className="bg-slate-50 px-5 py-4 border-t border-slate-200 flex justify-end">
           <button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold font-mono text-xs py-2.5 px-6 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold font-mono text-xs py-2.5 px-6 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
             id="btn-submit-entry"
           >
             <Save className="w-4 h-4" />

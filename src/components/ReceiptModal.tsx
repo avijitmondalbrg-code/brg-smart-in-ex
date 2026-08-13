@@ -98,11 +98,11 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   referrerPolicy="no-referrer"
                 />
                 <h3 className="text-[17px] font-black tracking-tight text-slate-800 font-display uppercase">
-                  Bengal Rehabilitation Group
+                  BRG REHAB HUB
                 </h3>
                 <p className="text-[10px] text-slate-500 font-medium whitespace-pre-line leading-relaxed">
-                  Speech & Hearing Center • Audiology Hub • Rehabilitation Services
-                  West Bengal, India • Contact: info@bengalrehabilitationgroup.com
+                  A Unit of Bengal Rehabilitation & Research Pvt. Ltd.
+                  Kolkata, West Bengal, India • Contact: 6291236283 | 9830447176; infobrg18@gmail.com
                 </p>
                 <p className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-sm max-w-max mx-auto sm:mx-0 font-mono">
                   GSTIN: 19AALCB1534C1ZY
@@ -196,7 +196,7 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
               <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
                 {/* Table Header */}
                 <div className="grid grid-cols-12 bg-slate-100 py-2.5 px-4 font-bold text-slate-600 border-b border-slate-250">
-                  <div className="col-span-8">Description of Therapeutic Services</div>
+                  <div className="col-span-8">Description of Services</div>
                   <div className="col-span-4 text-right font-bold">Collected Amount</div>
                 </div>
 
@@ -214,7 +214,6 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                               </span>
                             )}
                           </p>
-                          <p className="text-[9px] text-slate-400 italic mt-0.5">Clinical Rehabilitation Procedure & Consultation</p>
                         </div>
                         <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[12.5px]">
                           {formatCurrency(service.amount)}
@@ -233,7 +232,6 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                           </span>
                         )}
                       </p>
-                      <p className="text-[10px] text-slate-500 italic mt-0.5">Clinical Rehabilitation, Consultative Assessment, and Diagnostic Operations.</p>
                     </div>
                     <div className="col-span-4 text-right font-mono font-bold text-slate-800 text-[13px]">
                       {formatCurrency(entry.amountCollected)}
@@ -282,7 +280,7 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   </>
                 )}
                 <div className="grid grid-cols-12 bg-slate-50/50 py-3 px-4 font-bold text-slate-800 border-t border-slate-200 items-center">
-                  <div className="col-span-8 text-right text-slate-500 font-display">TENDER TOTAL PAID:</div>
+                  <div className="col-span-8 text-right text-slate-500 font-display">TOTAL AMOUNT:</div>
                   <div className="col-span-4 text-right font-mono font-extrabold text-[14px] text-teal-700">
                     {formatCurrency(entry.amountCollected)}
                   </div>
@@ -311,7 +309,7 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   <span className="font-mono text-[9px] text-slate-500 uppercase tracking-widest block font-bold">Authorized Signatory</span>
                 </div>
                 <span className="font-display font-black text-slate-600 block leading-tight text-[10px] uppercase">
-                  BRG ACCOUNTS HUB
+                  BRG REHAB HUB
                 </span>
               </div>
             </div>
