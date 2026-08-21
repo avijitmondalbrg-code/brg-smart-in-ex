@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { IncomeEntry } from "../types";
 import { 
   X, 
@@ -14,7 +14,9 @@ import {
   User, 
   FileText, 
   Sparkles, 
-  CreditCard 
+  CreditCard,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 
 interface ReceiptModalProps {
@@ -24,6 +26,27 @@ interface ReceiptModalProps {
 
 export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
   if (!entry) return null;
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Close on Escape key or handle keyboard events
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, onClose]);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen((prev) => !prev);
+  };
 
   const discount = entry.discount || 0;
   const hasDiscount = discount > 0;
@@ -42,48 +65,202 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
     }).format(amt);
   };
 
+  const numberToWordsINR = (num: number): string => {
+    if (isNaN(num) || num === null || num === undefined) return "";
+    const rounded = Math.round(num * 100) / 100;
+    if (rounded === 0) return "Rupees Zero Only";
+
+    const ones = [
+      "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+      "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+      "Seventeen", "Eighteen", "Nineteen"
+    ];
+    const tens = [
+      "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+    ];
+
+    const convertLessThanThousand = (n: number): string => {
+      let result = "";
+      if (n >= 100) {
+        result += ones[Math.floor(n / 100)] + " Hundred ";
+        n %= 100;
+      }
+      if (n >= 20) {
+        result += tens[Math.floor(n / 10)] + " ";
+        n %= 10;
+      }
+      if (n > 0) {
+        result += ones[n] + " ";
+      }
+      return result.trim();
+    };
+
+    const integerPart = Math.floor(rounded);
+    const decimalPart = Math.round((rounded - integerPart) * 100);
+
+    let words = "";
+
+    const crore = Math.floor(integerPart / 10000000);
+    let rem = integerPart % 10000000;
+
+    const lakh = Math.floor(rem / 100000);
+    rem %= 100000;
+
+    const thousand = Math.floor(rem / 1000);
+    rem %= 1000;
+
+    const hundred = rem;
+
+    if (crore > 0) {
+      words += convertLessThanThousand(crore) + " Crore ";
+    }
+    if (lakh > 0) {
+      words += convertLessThanThousand(lakh) + " Lakh ";
+    }
+    if (thousand > 0) {
+      words += convertLessThanThousand(thousand) + " Thousand ";
+    }
+    if (hundred > 0) {
+      words += convertLessThanThousand(hundred) + " ";
+    }
+
+    words = words.trim();
+    let finalStr = words ? `Rupees ${words}` : "Rupees Zero";
+
+    if (decimalPart > 0) {
+      const paiseWords = convertLessThanThousand(decimalPart);
+      finalStr += ` and ${paiseWords} Paise`;
+    }
+
+    return `${finalStr} Only`;
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" id="receipt-modal-bg">
-      
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity no-print" 
-        onClick={onClose} 
-      />
+    <div 
+      className={`fixed inset-0 z-50 overflow-y-auto ${
+        isFullscreen ? "bg-slate-950/95 flex flex-col" : ""
+      }`} 
+      role="dialog" 
+      aria-modal="true" 
+      id="receipt-modal-bg"
+    >
+      {/* Backdrop (in standard mode) */}
+      {!isFullscreen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity no-print" 
+          onClick={onClose} 
+        />
+      )}
 
-      <div className="flex min-h-full items-center justify-center p-4 sm:p-6 lg:p-8">
-        
-        {/* Modal Container */}
-        <div className="relative transform overflow-hidden rounded-2xl bg-white text-slate-800 shadow-2xl transition-all w-full max-w-2xl border border-slate-300">
-          
-          {/* Top action helper (hidden during actual paper print) */}
-          <div className="no-print bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4.5 h-4.5 text-blue-600" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 font-display">Medical Receipt Preview</h2>
+      {/* Top sticky action helper bar for Fullscreen Mode */}
+      {isFullscreen && (
+        <div className="no-print bg-slate-900 border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-50 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <ShieldCheck className="w-4.5 h-4.5" />
             </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-xs"
-                id="btn-print-receipt-modal"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Invoice</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded bg-white hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-                id="btn-close-receipt-modal"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-white font-display">Medical Receipt Preview</h2>
+                <span className="bg-blue-900/60 text-blue-300 text-[10px] font-mono px-2 py-0.5 rounded-full border border-blue-700/50">
+                  Full Screen Mode
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">Press Esc or click Exit to restore standard view</p>
             </div>
           </div>
+          
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+              id="btn-print-receipt-fullscreen"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Invoice</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              id="btn-toggle-fullscreen-active"
+              title="Exit Full Screen"
+            >
+              <Minimize2 className="w-4 h-4 text-blue-400" />
+              <span className="hidden sm:inline">Exit Fullscreen</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl border border-slate-700 transition-colors cursor-pointer"
+              id="btn-close-receipt-fullscreen"
+              title="Close Preview"
+            >
+              <X className="w-4.5 h-4.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Container Wrapper */}
+      <div className={`
+        ${isFullscreen 
+          ? "flex-1 p-4 sm:p-8 flex justify-center items-start overflow-y-auto" 
+          : "flex min-h-full items-center justify-center p-3 sm:p-6 lg:p-8"
+        }
+      `}>
+        
+        {/* Modal Sheet Container */}
+        <div className={`
+          relative transform overflow-hidden rounded-2xl bg-white text-slate-800 shadow-2xl transition-all w-full border border-slate-300
+          ${isFullscreen ? "max-w-4xl my-auto" : "max-w-3xl"}
+        `}>
+          
+          {/* Top action helper (in standard mode) */}
+          {!isFullscreen && (
+            <div className="no-print bg-slate-50 border-b border-slate-200 px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4.5 h-4.5 text-blue-600" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 font-display">Medical Receipt Preview</h2>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                  id="btn-toggle-fullscreen"
+                  title="Full Screen View"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:inline text-[11px] font-semibold">Full Screen</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-xs"
+                  id="btn-print-receipt-modal"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Invoice</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer ml-1"
+                  id="btn-close-receipt-modal"
+                  title="Close (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Printable Invoice Block */}
           <div className="p-6 sm:p-10 space-y-6 font-sans select-text bg-white" id="printable-receipt-card">
@@ -286,6 +463,16 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* 4. Amount in Words */}
+            <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-2 text-xs">
+              <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider shrink-0 font-display">
+                Amount in Words:
+              </span>
+              <span className="font-bold text-blue-950 italic font-mono text-[11.5px]">
+                {numberToWordsINR(entry.amountCollected)}
+              </span>
             </div>
 
             {/* User notes if existing */}
