@@ -385,6 +385,11 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                         <div className="col-span-8">
                           <p className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                             <span>{service.serviceType}</span>
+                            {entry.hsnCode && (
+                              <span className="inline-flex px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-mono font-bold select-none">
+                                HSN/SAC: {entry.hsnCode}
+                              </span>
+                            )}
                             {service.quantity && service.quantity > 1 && (
                               <span className="inline-flex px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[9px] font-mono font-bold select-none">
                                 QTY: {service.quantity}
@@ -403,6 +408,11 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
                     <div className="col-span-8">
                       <p className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                         <span>{entry.serviceType}</span>
+                        {entry.hsnCode && (
+                          <span className="inline-flex px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-mono font-bold select-none">
+                            HSN/SAC: {entry.hsnCode}
+                          </span>
+                        )}
                         {entry.quantity && entry.quantity > 1 && (
                           <span className="inline-flex px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[9px] font-mono font-bold select-none">
                             QTY: {entry.quantity}
@@ -436,7 +446,15 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
 
                 {entry.gstEnabled && (
                   <>
-                    <div className="grid grid-cols-12 bg-slate-50/50 py-2 px-4 text-xs font-semibold text-slate-500 border-t border-slate-200 items-center">
+                    {entry.hsnCode && (
+                      <div className="grid grid-cols-12 bg-slate-50/50 py-2 px-4 text-xs font-semibold text-slate-500 border-t border-slate-200 items-center">
+                        <div className="col-span-8 text-right font-display text-[10px] uppercase tracking-wider">HSN / SAC Code:</div>
+                        <div className="col-span-4 text-right font-mono font-bold text-slate-800">
+                          {entry.hsnCode}
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-12 bg-slate-50/50 py-2 px-4 text-xs font-semibold text-slate-500 border-t border-slate-100 items-center">
                       <div className="col-span-8 text-right font-display text-[10px] uppercase tracking-wider">Taxable Value (Subtotal):</div>
                       <div className="col-span-4 text-right font-mono font-bold text-slate-700">
                         {formatCurrency(entry.amountCollected - (entry.gstAmount || 0))}

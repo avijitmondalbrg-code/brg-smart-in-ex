@@ -67,6 +67,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstRate, setGstRate] = useState<number>(18);
   const [gstType, setGstType] = useState<"inclusive" | "exclusive">("inclusive");
+  const [hsnCode, setHsnCode] = useState<string>("");
 
   // States for multiple services/procedures under one invoice
   const [isMultipleServices, setIsMultipleServices] = useState<boolean>(false);
@@ -246,6 +247,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setGstEnabled(!!editingEntry.gstEnabled);
       setGstRate(editingEntry.gstRate || 18);
       setGstType(editingEntry.gstType || "inclusive");
+      setHsnCode(editingEntry.hsnCode || "");
 
       // Set preset to Custom since we are editing custom values
       setSelectedPresetIndex(-1);
@@ -280,6 +282,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setGstEnabled(false);
       setGstRate(18);
       setGstType("inclusive");
+      setHsnCode("");
       
       regenerateIds(today);
       setSelectedPresetIndex(0); // standard referral
@@ -466,7 +469,8 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
         gstType,
         gstAmount: calculatedGstAmount,
         cgstAmount: cgst,
-        sgstAmount: sgst
+        sgstAmount: sgst,
+        ...(hsnCode.trim() ? { hsnCode: hsnCode.trim() } : {})
       } : {}),
       expenses: {
         doctorReferral,
@@ -497,6 +501,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
       setAslpName("");
       setIsMatchedPatient(false);
       setNotes("");
+      setHsnCode("");
 
       // Calculate next sequence immediately incorporating the newly submitted entry
       const tempEntry = { ...entryPayload, id: "temp-" + Date.now(), createdTime: new Date().toISOString() };
@@ -1216,7 +1221,7 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
             </div>
 
             {gstEnabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-fadeIn">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60 animate-fadeIn">
                 {/* GST Rate Select */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -1260,8 +1265,57 @@ export default function IncomeForm({ onSubmit, editingEntry, onCancelEdit, entri
                   </div>
                 </div>
 
+                {/* HSN / SAC Code */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>HSN / SAC Code</span>
+                    <span className="text-[9px] text-slate-400 font-normal font-sans">Optional</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 999312 or 902140"
+                    value={hsnCode}
+                    onChange={(e) => setHsnCode(e.target.value)}
+                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-lg py-2 px-3 bg-white focus:border-emerald-500 focus:outline-hidden transition-colors"
+                    id="inp-hsn-code"
+                  />
+                  {/* Quick suggestion chips */}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHsnCode("999312")}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/80 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 font-mono transition-colors cursor-pointer"
+                      title="SAC for Medical / Clinical services"
+                    >
+                      999312 (Medical)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHsnCode("902140")}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/80 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 font-mono transition-colors cursor-pointer"
+                      title="HSN for Hearing Aids & Parts"
+                    >
+                      902140 (Hearing Aid)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHsnCode("9983")}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/80 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 font-mono transition-colors cursor-pointer"
+                      title="SAC for Other Professional Services"
+                    >
+                      9983 (Services)
+                    </button>
+                  </div>
+                </div>
+
                 {/* Live calculation breakdown */}
-                <div className="sm:col-span-2 bg-emerald-50/40 border border-emerald-100 p-3 rounded-lg text-xs space-y-1 mt-1 font-mono">
+                <div className="sm:col-span-3 bg-emerald-50/40 border border-emerald-100 p-3 rounded-lg text-xs space-y-1 mt-1 font-mono">
+                  {hsnCode.trim() && (
+                    <div className="flex justify-between text-slate-600 font-semibold pb-1 border-b border-emerald-100/70">
+                      <span>HSN / SAC Code:</span>
+                      <span className="font-bold text-emerald-800">{hsnCode.trim()}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-500 font-semibold">
                     <span>Taxable Base Value (Subtotal):</span>
                     <span className="font-bold">

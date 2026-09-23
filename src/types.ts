@@ -45,6 +45,7 @@ export interface IncomeEntry {
   gstAmount?: number; // Calculated total GST amount
   cgstAmount?: number; // CGST component
   sgstAmount?: number; // SGST component
+  hsnCode?: string; // HSN / SAC Code
   quantity?: number; // Quantity option (QTY) for single service
 }
 

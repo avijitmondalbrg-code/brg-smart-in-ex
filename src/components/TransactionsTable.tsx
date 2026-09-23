@@ -130,6 +130,7 @@ export default function TransactionsTable({
     const cols = [
       "Date", "Patient ID", "Patient Name", "Bill No", "Service Type", 
       "Clinic Location", "Payment Mode", "Gross Fee (INR)", "Discount (INR)", "Net Collected (INR)", 
+      "GST Enabled", "HSN/SAC Code", "GST Rate (%)", "GST Amount (INR)",
       "Referred Doctor", "ASLP (Audiologist)", "Doc Referral Alloc (INR)", "ASLP Commission (INR)", 
       "Clinic Share (INR)", "Service/Fabrication Fees (INR)", "Support Staff Commission (INR)", 
       "Other Expenses (INR)", "BRG Profit (INR)", "Created Time", "Notes"
@@ -147,6 +148,10 @@ export default function TransactionsTable({
       e.amountCollected + (e.discount || 0), // Gross Fee
       e.discount || 0, // Discount
       e.amountCollected, // Net Collected
+      e.gstEnabled ? "Yes" : "No",
+      `"${(e.hsnCode || "").replace(/"/g, '""')}"`,
+      e.gstRate || "",
+      e.gstAmount || "",
       `"${(e.referredDoctor || "").replace(/"/g, '""')}"`,
       `"${(e.aslpName || "").replace(/"/g, '""')}"`,
       e.expenses.doctorReferral,
@@ -443,7 +448,19 @@ export default function TransactionsTable({
                       {/* Clinic / Service */}
                       <td className="py-3.5 px-4">
                         <div>
-                          <p className="text-[11px] font-bold text-slate-600">{e.clinicLocation}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-[11px] font-bold text-slate-700">{e.clinicLocation}</p>
+                            {e.gstEnabled && (
+                              <span className="text-[9px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.2 rounded border border-blue-200">
+                                GST {e.gstRate || 18}%
+                              </span>
+                            )}
+                            {e.hsnCode && (
+                              <span className="text-[9px] bg-slate-100 text-slate-700 font-mono font-bold px-1.5 py-0.2 rounded border border-slate-200">
+                                HSN: {e.hsnCode}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-slate-400 max-w-xs truncate">{e.serviceType}</p>
                         </div>
                       </td>
