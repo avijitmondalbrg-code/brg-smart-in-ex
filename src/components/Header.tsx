@@ -19,13 +19,15 @@ interface HeaderProps {
   totalEntriesCount: number;
   userRole?: string;
   onLogout?: () => void;
+  appLogo?: string;
 }
 
 export default function Header({ 
   onToggleSidebar, 
   totalEntriesCount,
   userRole = "admin",
-  onLogout
+  onLogout,
+  appLogo
 }: HeaderProps) {
   // Setup standard high-fidelity Indian Standard Time format
   const getISTTime = () => {
@@ -76,9 +78,9 @@ export default function Header({
             <div className="flex items-center gap-3">
               <div className="lg:hidden bg-slate-50 p-1 rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
                 <img 
-                  src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                  src={appLogo || "https://www.bengalrehabilitationgroup.com/images/brg_logo.png"} 
                   alt="BRG Logo" 
-                  className="h-8 w-auto object-contain"
+                  className="h-8 w-auto max-w-[110px] object-contain"
                   referrerPolicy="no-referrer"
                 />
               </div>

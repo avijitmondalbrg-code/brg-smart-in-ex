@@ -22,9 +22,10 @@ import {
 interface ReceiptModalProps {
   entry: IncomeEntry | null;
   onClose: () => void;
+  appLogo?: string;
 }
 
-export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
+export default function ReceiptModal({ entry, onClose, appLogo }: ReceiptModalProps) {
   if (!entry) return null;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -269,9 +270,9 @@ export default function ReceiptModal({ entry, onClose }: ReceiptModalProps) {
             <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4 pb-6 border-b-2 border-slate-200">
               <div className="text-center sm:text-left space-y-1.5">
                 <img 
-                  src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                  src={appLogo || "https://www.bengalrehabilitationgroup.com/images/brg_logo.png"} 
                   alt="Bengal Rehabilitation Group" 
-                  className="h-12 w-auto object-contain mx-auto sm:mx-0"
+                  className="h-12 w-auto max-w-[170px] object-contain mx-auto sm:mx-0"
                   referrerPolicy="no-referrer"
                 />
                 <h3 className="text-[17px] font-black tracking-tight text-blue-950 font-display uppercase">

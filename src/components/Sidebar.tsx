@@ -29,6 +29,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   onLogout: () => void;
+  appLogo?: string;
 }
 
 export default function Sidebar({
@@ -38,7 +39,8 @@ export default function Sidebar({
   userRole,
   isMobileOpen,
   setIsMobileOpen,
-  onLogout
+  onLogout,
+  appLogo
 }: SidebarProps) {
 
   const navItems: {
@@ -111,9 +113,9 @@ export default function Sidebar({
             <div className="flex items-center gap-3">
               <div className="bg-white p-1.5 rounded-xl flex items-center justify-center shrink-0 shadow-xs border border-slate-200">
                 <img 
-                  src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                  src={appLogo || "https://www.bengalrehabilitationgroup.com/images/brg_logo.png"} 
                   alt="BRG Logo" 
-                  className="h-9 w-auto object-contain"
+                  className="h-9 w-auto max-w-[120px] object-contain"
                   referrerPolicy="no-referrer"
                 />
               </div>

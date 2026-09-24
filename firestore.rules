@@ -59,10 +59,21 @@ service cloud.firestore {
       && (!data.keys().hasAny(['quantity']) || data.quantity is number);
     }
 
+    function isValidAppSettings(data) {
+      return (!data.keys().hasAny(['logoUrl']) || (data.logoUrl is string && data.logoUrl.size() <= 800000))
+      && (!data.keys().hasAny(['updatedAt']) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
     match /entries/{entryId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && isValidIncomeEntry(incoming());
       allow update: if isSignedIn() && isValidIncomeEntry(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /settings/{settingId} {
+      allow list, get: if true;
+      allow create, update: if isSignedIn() && isValidAppSettings(incoming());
       allow delete: if isSignedIn();
     }
   }

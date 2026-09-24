@@ -31,6 +31,12 @@ import {
   Users
 } from "lucide-react";
 import { 
+  DEFAULT_APP_LOGO, 
+  getInitialAppLogo, 
+  saveLogoToLocalStorage, 
+  removeLogoFromLocalStorage 
+} from "./lib/logoHelper";
+import { 
   db, 
   authenticateSessionAnonymously, 
   terminateSession,
@@ -69,6 +75,9 @@ export default function App() {
 
   // Primary state holding all financial collections
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
+
+  // Central clinic logo state (synced with localStorage & Firestore)
+  const [appLogo, setAppLogo] = useState<string>(() => getInitialAppLogo());
   
   // Tab states: "dashboard" | "ledger" | "expenses" | "patients" | "settings"
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
@@ -88,6 +97,31 @@ export default function App() {
   // Server Synchronization states
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState<boolean>(false);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
+
+  // Listen for remote clinic branding/logo settings from Firestore
+  useEffect(() => {
+    let unsubConfig: (() => void) | null = null;
+    try {
+      const configDocRef = doc(db, "settings", "app_config");
+      unsubConfig = onSnapshot(configDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && typeof data.logoUrl === "string" && data.logoUrl.trim()) {
+            setAppLogo(data.logoUrl.trim());
+            saveLogoToLocalStorage(data.logoUrl.trim());
+          }
+        }
+      }, (error) => {
+        console.log("App settings sync info:", error?.message);
+      });
+    } catch (e) {
+      console.warn("Could not attach settings sync listener:", e);
+    }
+
+    return () => {
+      if (unsubConfig) unsubConfig();
+    };
+  }, []);
 
   // Synchronically connect and establish high-fidelity real-time session
   useEffect(() => {
@@ -355,6 +389,42 @@ export default function App() {
     e.target.value = ""; // Clear file selector
   };
 
+  // 8. Update Clinic Logo (Synced with localStorage and Firestore)
+  const handleUpdateLogo = async (newLogoUrl: string) => {
+    setAppLogo(newLogoUrl);
+    saveLogoToLocalStorage(newLogoUrl);
+
+    try {
+      const configDocRef = doc(db, "settings", "app_config");
+      await setDoc(configDocRef, {
+        logoUrl: newLogoUrl,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      triggerNotification("Clinic logo successfully updated everywhere across the application!", "success");
+    } catch (err) {
+      console.warn("Could not save logo to central cloud database, saved locally:", err);
+      triggerNotification("Logo updated and cached locally on this device!", "info");
+    }
+  };
+
+  // 9. Reset Logo to Default
+  const handleResetLogo = async () => {
+    setAppLogo(DEFAULT_APP_LOGO);
+    removeLogoFromLocalStorage();
+
+    try {
+      const configDocRef = doc(db, "settings", "app_config");
+      await setDoc(configDocRef, {
+        logoUrl: DEFAULT_APP_LOGO,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      triggerNotification("Logo restored to standard BRG logo across all screens.", "success");
+    } catch (err) {
+      console.warn("Could not reset logo in cloud, reset locally:", err);
+      triggerNotification("Logo restored locally.", "info");
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#848688]">
@@ -376,7 +446,7 @@ export default function App() {
             </div>
           </div>
         )}
-        <LoginCover onLoginSuccess={handleLoginSuccess} />
+        <LoginCover onLoginSuccess={handleLoginSuccess} appLogo={appLogo} />
       </div>
     );
   }
@@ -393,6 +463,7 @@ export default function App() {
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         onLogout={handleLogout}
+        appLogo={appLogo}
       />
 
       {/* Main Layout Area */}
@@ -404,6 +475,7 @@ export default function App() {
           totalEntriesCount={entries.length}
           userRole={userRole}
           onLogout={handleLogout}
+          appLogo={appLogo}
         />
 
         {/* Main Content View */}
@@ -475,6 +547,9 @@ export default function App() {
                 isFirebaseSyncing={isFirebaseSyncing}
                 userRole={userRole}
                 onLogout={handleLogout}
+                appLogo={appLogo}
+                onUpdateLogo={handleUpdateLogo}
+                onResetLogo={handleResetLogo}
               />
             </div>
 
@@ -533,9 +608,9 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <img 
-                src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                src={appLogo || DEFAULT_APP_LOGO} 
                 alt="BRG Logo" 
-                className="h-5 w-auto grayscale opacity-60"
+                className="h-5 w-auto max-w-[80px] object-contain grayscale opacity-60"
                 referrerPolicy="no-referrer"
               />
               <span className="font-sans">© 2026 Bengal Rehabilitation Group. All rights reserved.</span>
@@ -554,6 +629,7 @@ export default function App() {
         <ReceiptModal 
           entry={receiptEntry}
           onClose={() => setReceiptEntry(null)}
+          appLogo={appLogo}
         />
       )}
 

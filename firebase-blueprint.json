@@ -22,12 +22,25 @@
         "selectedServices": { "type": "array" }
       },
       "required": ["id", "patientName", "patientId", "date", "serviceType", "amountCollected", "paymentMode", "clinicLocation", "billNo", "expenses", "createdTime"]
+    },
+    "app_settings": {
+      "title": "App Settings",
+      "description": "Global application branding and configuration",
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
     }
   },
   "firestore": {
     "/entries/{entryId}": {
       "schema": "income_entry",
       "description": "The collections of patient finances"
+    },
+    "/settings/{settingId}": {
+      "schema": "app_settings",
+      "description": "Global application configuration documents"
     }
   }
 }

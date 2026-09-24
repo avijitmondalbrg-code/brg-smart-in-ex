@@ -22,9 +22,10 @@ import {
 
 interface LoginCoverProps {
   onLoginSuccess: (role: string) => void;
+  appLogo?: string;
 }
 
-export default function LoginCover({ onLoginSuccess }: LoginCoverProps) {
+export default function LoginCover({ onLoginSuccess, appLogo }: LoginCoverProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -89,9 +90,9 @@ export default function LoginCover({ onLoginSuccess }: LoginCoverProps) {
             <div className="flex items-center gap-3.5">
               <div className="bg-white p-2.5 rounded-2xl border border-slate-200 flex items-center justify-center shrink-0 shadow-md">
                 <img 
-                  src="https://www.bengalrehabilitationgroup.com/images/brg_logo.png" 
+                  src={appLogo || "https://www.bengalrehabilitationgroup.com/images/brg_logo.png"} 
                   alt="BRG Logo" 
-                  className="h-10 sm:h-12 w-auto object-contain"
+                  className="h-10 sm:h-12 w-auto max-w-[150px] object-contain"
                   referrerPolicy="no-referrer"
                 />
               </div>
